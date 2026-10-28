@@ -836,10 +836,13 @@ function OpenSpecPage({
   const [changeId, setChangeId] = useState<string>();
   const [storeId, setStoreId] = useState<string | null | undefined>(initialContext?.storeId);
   const lastPlanningContext = useRef(planningContext);
+  const rememberedNavigationContext = useRef(false);
   useEffect(() => {
     if (lastPlanningContext.current === planningContext) return;
     lastPlanningContext.current = planningContext;
     if (threadId || !planningContext) return;
+    // An incoming selection already owns this panel; do not publish stale initial data.
+    rememberedNavigationContext.current = true;
     setProjectId(planningContext.projectId);
     setEnvironmentId(planningContext.environmentId);
     setStoreId(planningContext.storeId);
@@ -905,6 +908,20 @@ function OpenSpecPage({
         : undefined;
   const sourceSelection =
     selectedStoreId !== undefined ? { storeId: selectedStoreId } : {};
+  useEffect(() => {
+    if (threadId || rememberedNavigationContext.current || !source) return;
+    // Wait for the requested route/selection, rather than persisting a fallback
+    // while a different source query is still resolving.
+    const requestedEnvironment = environmentId ?? (!projectId ? routeEnvironment : undefined);
+    if ((projectId && source.projectId !== projectId) ||
+        (requestedEnvironment && source.id !== requestedEnvironment)) return;
+    rememberedNavigationContext.current = true;
+    savePlanningContext({
+      projectId: source.projectId,
+      environmentId: source.id,
+      ...(selectedStoreId !== undefined ? { storeId: selectedStoreId } : {}),
+    });
+  }, [threadId, source?.id, source?.projectId, projectId, environmentId, routeEnvironment, selectedStoreId]);
   const planningSources = liveQueryView(
     useRpcQuery({
       contract: rpcContract,

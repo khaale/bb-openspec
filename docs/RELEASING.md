@@ -2,6 +2,8 @@
 
 This repository is being prepared for direct Git installation. Nothing has been published by these checks. Package: `bb-plugin-openspec`; plugin ID: `openspec`; current version: `0.5.0`; license: MIT. The local listing bundle is in [marketplace/](../marketplace/README.md).
 
+Preparation update (2026-10-29): public Git installation and the latest local candidate passed in an isolated bb profile; see [installation verification](research/installation-verification.md). The marketplace fork is checked out beside this repository on `submit-openspec`, with the entry and assets committed locally. Its catalog build, all tests (using system Git) and v1 gate pass. A release tag, final tag installation check, fork push and marketplace PR remain pending release approval.
+
 ## Local checks
 
 ```sh
@@ -43,7 +45,7 @@ bb plugin install 'git:https://github.com/khaale/bb-openspec.git@v0.5.0'
 
 A bare repository URL tracks its default branch. Prefer a tag range for released versions. Users apply updates with `bb plugin outdated` and `bb plugin update openspec`. npm publication is not required for Git distribution and is not part of this preparation.
 
-## Community marketplace — future work
+## Community marketplace preparation
 
 Use the [submit-a-plugin skill](https://github.com/get-bb/bb/blob/main/plugins/bb-guide/skills/submit-a-plugin/SKILL.md) when submission is requested. Re-read the current contracts at that time; the following was checked on 2026-10-28:
 
@@ -57,4 +59,4 @@ Use the [submit-a-plugin skill](https://github.com/get-bb/bb/blob/main/plugins/b
 - The current official build and remote-source liveness check pass in an isolated single-entry fixture. This checks our v1/v2 metadata, category, icon, overview and all screenshot files; full marketplace PR checks remain a submission step.
 - Only after explicit authorization, prepare the fork/branch and submit a PR. Marketplace acceptance is a separate review and is not implied by passing local checks.
 
-The submission skill is used now for preparation only. The local entry/assets bundle and isolated validation fixture are prepared; no fork, marketplace PR, release tag, push or npm publication is performed by this workflow.
+The submission skill has been used for local preparation and fork validation. No marketplace PR, release tag or npm publication has been created. Before the first release push, obtain approval for the exact release commit and commands as described above.

@@ -4,6 +4,8 @@ These versions record local development; they do not imply public releases.
 
 ## 0.5.0 — 2026-10-28
 
+- Environment-scoped deep links establish shared navigation context, preserving the project when switching between Specs and Changes.
+
 - Separate OpenSpec · Specs panel with a searchable recursive tree of current and active-change specifications.
 - Read-only Current / Proposed / Compare, explicit change source, Git-style status and diagnostics for unresolved operations.
 - Consistent Changes/Specs names, distinct icons and shared navigation planning context.

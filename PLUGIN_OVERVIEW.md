@@ -1,6 +1,6 @@
 ## What you get
 
-Keep active and archived OpenSpec changes beside your agent threads. Read proposals, specifications and designs, inspect task progress, and see which linked agents are working. Choose a compact card list or a view with task details.
+Open **OpenSpec · Changes** to browse active and archived changes beside your agent threads. Read proposals, delta specifications and designs, inspect task progress, and see which linked agents are working. Choose a compact card list or a view with task details.
 
 Launch an agent to explore, implement or verify a change using bb's provider, model and permission controls. The new thread is linked automatically; existing threads can be assigned without starting work. Both Changes and Specs are available in navigation and as thread panel actions.
 

@@ -68,7 +68,7 @@ Specification entries SHALL distinguish unchanged, added, and modified content t
 - **THEN** the specification remains a modified entry and its removed requirements can be inspected in comparison
 
 ### Requirement: Source-Scoped Live Reading
-Tree entries and documents SHALL remain isolated by the selected environment and resolved planning source, including registered stores. Changes to main specifications or active deltas SHALL update the affected tree and open document through the existing event-driven lifecycle without periodic rereading. Local specification browsing SHALL work without the OpenSpec CLI. Existing document and path limits SHALL be enforced with explicit errors.
+Tree entries and documents SHALL remain isolated by the selected environment and resolved planning source, including registered stores. Opening an environment-scoped navigation deep link SHALL establish its resolved project, environment and selected planning source as the shared navigation context without requiring a dropdown change. Thread panels MUST NOT publish their thread context into shared navigation state. Changes to main specifications or active deltas SHALL update the affected tree and open document through the existing event-driven lifecycle without periodic rereading. Local specification browsing SHALL work without the OpenSpec CLI. Existing document and path limits SHALL be enforced with explicit errors.
 
 #### Scenario: A main or delta specification is saved
 - **WHEN** an agent changes a main specification or an active delta in the observed source
@@ -91,3 +91,8 @@ Tree entries and documents SHALL remain isolated by the selected environment and
 - **WHEN** the user opens OpenSpec · Specs from a thread panel's actions and selects a capability
 - **THEN** the specification document opens within that panel using the thread's environment and bound planning source
 - **AND** selecting a capability or reading mode does not navigate away from the thread
+
+#### Scenario: Direct link establishes the navigation context
+- **WHEN** a browser without saved navigation context opens an environment-scoped Specs or Changes link and then opens the other view
+- **THEN** both views use the environment and project resolved from that link
+- **AND** an unrelated first project is not substituted
