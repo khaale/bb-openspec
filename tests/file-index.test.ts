@@ -90,7 +90,7 @@ test("rescan repairs missed changes and confines symlinked task files", async ()
       path.join(f.root, "openspec/changes/a/tasks.md"),
     );
     await index.update([{ path: "changes/a/tasks.md", type: "update" }]);
-    assert.match(index.change("a").change.error ?? "", /вне OpenSpec/);
+    assert.match(index.change("a").change.error ?? "", /outside the OpenSpec/);
     assert.equal(index.change("a").change.total, 0);
   } finally {
     await f.dispose();

@@ -1,3 +1,4 @@
+import { pluginError } from "./plugin-error";
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 import {
@@ -47,7 +48,7 @@ export class OpenSpecIndex {
     private readonly onTaskRead?: (file: string) => void,
   ) {
     if (!path.isAbsolute(workspacePath))
-      throw new Error("Требуется абсолютный путь окружения.");
+      throw pluginError("error.absolutePathRequired");
     this.root = path.join(workspacePath, "openspec");
   }
 
@@ -71,14 +72,14 @@ export class OpenSpecIndex {
       relative === ".." ||
       path.isAbsolute(relative)
     )
-      throw new Error("Каталог OpenSpec находится вне окружения.");
+      throw pluginError("error.outsideWorkspace");
     this.missing = false;
     const files = new Set<string>();
     let entriesSeen = 0;
     const visit = async (directory: string, prefix: string) => {
       for (const entry of await readdir(directory, { withFileTypes: true })) {
         if (++entriesSeen > LIMITS.paths)
-          throw new Error(`В OpenSpec больше ${LIMITS.paths} записей.`);
+          throw pluginError("error.pathLimit", { limit: LIMITS.paths });
         if (entry.isSymbolicLink()) continue;
         const name = safeRelative(
           prefix ? `${prefix}/${entry.name}` : entry.name,
@@ -100,11 +101,9 @@ export class OpenSpecIndex {
       const actualRoot = await realpath(this.root);
       const inside = path.relative(actualRoot, actual);
       if (inside.startsWith(`..${path.sep}`) || path.isAbsolute(inside))
-        throw new Error("Задачи находятся вне OpenSpec.");
+        throw pluginError("error.tasksOutsideRoot");
       if ((await stat(actual)).size > LIMITS.fileBytes)
-        throw new Error(
-          "Документ превышает 512 КиБ. Откройте его в редакторе.",
-        );
+        throw pluginError("error.documentTooLarge");
       return {
         groups: parseTasks(await readFile(actual, "utf8")),
         error: null,
@@ -130,9 +129,7 @@ export class OpenSpecIndex {
       ),
     ].sort();
     if (ids.length > LIMITS.changes)
-      throw new Error(
-        `Поддерживается до ${LIMITS.changes} изменений в окружении.`,
-      );
+      throw pluginError("error.changeLimit", { limit: LIMITS.changes });
     const nextTasks = new Map<string, Tasks>();
     for (let offset = 0; offset < ids.length; offset += 8) {
       await Promise.all(
@@ -218,7 +215,7 @@ export class OpenSpecIndex {
     const change = this.summaries.find(
       (candidate) => candidate.id === changeId,
     );
-    if (!change) throw new Error("Изменение не найдено в выбранном окружении.");
+    if (!change) throw pluginError("error.changeNotFound");
     return {
       change,
       groups:

@@ -1,41 +1,38 @@
 # OpenSpec for bb
 
-Плагин bb для работы с изменениями OpenSpec: просмотр спецификаций и прогресса задач, запуск агентов и привязка тредов. Источник задач — файлы репозитория; отдельная база задач не создаётся.
+English · [Русский](README.ru.md)
 
-## Возможности
+Track OpenSpec changes and task progress in [bb](https://getbb.app/), read specifications, and launch or link agent threads. Tasks stay in your repository.
 
-- Активные и архивные changes, поиск, выбор проекта и готового окружения.
-- Просмотр Proposal, Specs, Design и Tasks в Markdown, открытие исходных файлов в bb.
-- Чеклист только для чтения: статусы `✓` / `○` и прогресс вычисляются из `tasks.md`, файлы обновляет агент.
-- Компактный список карточек или список с деталями. Карточки показывают выполнение задач и состояние связанных тредов; работающий агент отмечается медленным spinner.
-- Свёрнутый выбор проекта, окружения и источника, подсказки у иконок и адаптация к узким панелям.
-- Запуск нового треда для проработки, реализации или проверки change с редактируемым первым сообщением и стандартными настройками провайдера, модели и разрешений bb.
-- Ручная или программная привязка существующего треда. Панель OpenSpec также доступна внутри треда.
-- Локальные источники и зарегистрированные OpenSpec stores (beta), включая store-only и store-optional проекты.
-- Сначала changes с работающим агентом, затем свежие по времени изменения артефактов.
-- Обновление по native watcher на машине проекта и событиям bb, без периодического перечитывания файлов.
+## Features
 
-## Скриншоты
+- Active and archived changes, search, project and environment selection.
+- Markdown previews for proposals, specifications, designs and tasks, with access to the source files in bb.
+- Read-only `✓` / `○` checklists and progress from `tasks.md`; agents update the files.
+- Compact cards or a list with details, including linked thread status and an animated working indicator.
+- Changes with a working agent first, followed by recently modified artifacts.
+- Launch threads to explore, implement or verify a change, with an editable English prompt and bb's provider, model and permission controls. The new thread is linked automatically.
+- Link existing threads manually or through plugin RPC. Available in the navigation panel and inside a thread.
+- Local OpenSpec directories and registered OpenSpec stores (beta).
+- Native file watching on the project machine, incremental task updates and reconnect recovery.
+- English and Russian UI, with automatic browser-language selection.
 
-Список изменений с артефактами и задачами выбранного change:
+## Screenshots
 
-![Список изменений и детали change](docs/screenshots/details.jpg)
-
-| Компактный список | Узкая панель |
+| Full view | Narrow panel |
 | --- | --- |
-| ![Компактный список изменений](docs/screenshots/compact.jpg) | ![Карточки в узкой панели](docs/screenshots/narrow.png) |
+| ![OpenSpec full view with task groups and completion status](docs/screenshots/details.jpg) | ![OpenSpec narrow panel](docs/screenshots/narrow.jpg) |
 
-## Требования
+## Requirements
 
-- bb >= 0.47 с Plugin SDK >= 0.6.79. Разработка и проверки выполняются с SDK 0.6.79.
-- Node.js и npm для установки зависимостей и сборки.
-- Готовое окружение bb с обычным каталогом `openspec/`.
+- bb 0.47 or later with Plugin SDK 0.6.79 or later. Verified locally with bb 0.47.1 / SDK 0.6.79 on macOS.
+- A ready bb environment with a standard OpenSpec directory or a registered store.
+- OpenSpec CLI on the environment machine for store discovery (`context --json`, `store list --json`; verified with OpenSpec 1.10.0). Local planning files work without it.
+- An agent provider configured in bb to run agents. The plugin itself needs no external account or service.
 
-Для обычных локальных changes CLI OpenSpec не нужен. Для stores и автоматического разрешения store-only/defaultStore нужен CLI с командами `context --json` и `store list --json`, доступный в PATH машины окружения (проверено с OpenSpec 1.10.0). Для ведения спецификаций и их проверки в процессе разработки используется установленный `openspec` CLI.
+## Install from source
 
-## Установка из исходников
-
-В корне проекта выполните:
+Node.js 22.19+ (22.x), 24.x or 26.x and npm are needed for development. Git installs use bb's bundled tools to install production dependencies and build the plugin.
 
 ```sh
 npm ci --include=dev
@@ -43,80 +40,89 @@ npm run build
 bb plugin install .
 ```
 
-Откройте **OpenSpec** в навигации bb. Нажмите название проекта в шапке, чтобы выбрать проект и окружение. В меню вкладок панели треда также доступно действие **OpenSpec**.
+Open **OpenSpec** in bb navigation or from a thread's panel tabs. Click the project name in the header to select its environment and planning source. Use the view icon to switch between compact cards and details.
 
-## Работа с агентами
-
-Кнопка **Запустить агента** создаёт видимый тред в выбранном окружении и автоматически связывает его с change. Агент работает в том же checkout; новое окружение или worktree плагин не создаёт.
-
-**Привязать тред** назначает существующий тред из того же окружения без отправки сообщения и запуска работы. У треда одна текущая привязка: повторное назначение заменяет прежнюю. У change может быть несколько связанных тредов. Связи хранятся в plugin metadata bb.
-
-Агент-менеджер может использовать RPC `launch`, `attach`, `changes` и `threadChoices` через `bb plugin rpc call`. Форматы запросов и правила работы описаны в [инструкции плагина](skills/openspec-work/SKILL.md).
-
-## Stores (beta)
-
-В раскрытом выборе контекста доступен **Источник OpenSpec**:
-
-- **Автоматически** — разрешение корня по правилам OpenSpec: локальное планирование, `store:` в config или `defaultStore` машины.
-- **Локальный** — `openspec/` выбранного окружения независимо от store-настроек.
-- **Store · имя** — явный выбор зарегистрированного store, эквивалентный `--store имя`.
-
-Настройте store стандартными командами OpenSpec. Плагин читает регистрацию на машине выбранного окружения, не регистрирует stores и не выполняет clone/pull/push. [Документация OpenSpec stores](https://openspec.dev/docs/stores).
-
-Выбор store меняет источник артефактов и задач, сохраняя кодовое окружение запуска агента. Store виден в шапке, связи с тредами учитывают источник: одинаковые имена change в разных stores независимы. В prompt передаются полный planning path, code checkout и нужный `--store`. Доступ агента к внешнему каталогу определяется настройками разрешений bb.
-
-Разрешение корня кешируется в памяти. После изменения `store:`, `defaultStore` или регистрации нажмите обновление: плагин повторит discovery и переключит watcher. Изменения файлов уже выбранного store обновляются автоматически.
-
-References остаются read-only контекстом стандартных workflow OpenSpec CLI; отдельного каталога upstream specs или Worksets в интерфейсе пока нет. Старые привязки без store сохраняют локальный источник.
-
-## Обновление данных
-
-Первая загрузка сканирует OpenSpec и читает файлы задач. При сохранении известного `tasks.md` индекс перечитывает только этот файл; структурные изменения обновляют список файлов. Содержимое документов загружается при открытии.
-
-Открытые панели разделяют watcher одного пути; после закрытия последней подписки watcher и индекс освобождаются. Восстановление подключения выполняет rescan. При ошибке панель показывает сообщение, а кнопка обновления позволяет повторить подключение. Состояние агента обновляется через события тредов bb.
-
-[Сравнение прямого чтения с OpenSpec CLI на praxis и lore](docs/research/openspec-watcher.md) содержит замеры и команду воспроизведения benchmark.
-
-## Разработка
+Install the current main branch from Git:
 
 ```sh
-npm run typecheck
-npm test
-npm run test:stores # интеграция с CLI в изолированных временных stores
-npm run build
-bb plugin dev
+bb plugin install 'git:https://github.com/khaale/bb-openspec.git@main'
 ```
 
-После сборки установленный плагин можно перезагрузить командой `bb plugin reload openspec`.
+Tagged releases and version ranges are described in [release preparation](docs/RELEASING.md). A `v0.4.0` release tag has not been created by this update.
 
-| Файлы | Назначение |
+## Agent threads
+
+**Launch agent** starts a visible thread in the selected code environment and links it to the change. It uses the existing checkout. **Link thread** assigns a thread from that environment without starting it or sending a message. A thread has one current binding; a change can have several threads. Bindings persist in bb plugin metadata and include the planning source.
+
+Manager agents can call `launch`, `attach`, `changes` and `threadChoices` using `bb plugin rpc call`. See the [plugin instructions](skills/openspec-work/SKILL.md) for request formats.
+
+Task checkboxes are read-only. “Completed” means every task in `tasks.md` is checked; validation and archiving are separate operations.
+
+## Language
+
+In the plugin settings, **Language** offers **Automatic**, **English** and **Russian**. Automatic uses supported languages from the current browser's preferences, with English as fallback. A manual selection applies to all open plugin panels without reload.
+
+```sh
+bb plugin config openspec set language ru
+bb plugin config openspec set language en
+bb plugin config openspec set language auto
+```
+
+UI labels, tooltips, counters and the plugin's own errors are translated. OpenSpec content, names and external tool errors retain their original text. Native bb controls follow bb's own language behavior. Settings labels are English.
+
+New launch prompts and agent instructions are always English and require following project instructions, including the language of artifacts. Switching the UI language preserves the selected change and edited prompt.
+
+### Add a localization
+
+1. Create `src/messages/<locale>.ts` using `ru.ts` as an example. Use `Record<keyof typeof en, string>` to check the keys against the English catalog, and preserve placeholders such as `{name}` and `{count}`.
+2. Import and register the catalog in `CATALOGS` in `src/messages/index.ts`; add its English name to `LOCALE_LABELS`. Settings and browser-language resolution derive from that registry.
+3. Translate `task.*` and `spec.*`, then check number formatting and long labels in narrow panels. `Intl` selects plural forms. Currently `one`, `few`, `many` and `other` are supported; a language using `zero` or `two` requires extending `src/i18n.ts` and the catalogs.
+4. Run `npm run check`, rebuild and reload the plugin. Tests check all registered catalogs for matching keys and interpolation parameters. No additional localization dependency is needed.
+
+## OpenSpec stores (beta)
+
+Expand the header to choose **OpenSpec source**: **Automatic**, **Local**, or a registered store. Automatic follows OpenSpec discovery; Local explicitly uses the environment's own planning files. Store selection changes the planning source while preserving the agent's code environment. Launch prompts include both paths and the required `--store` flag.
+
+Configure stores with the [OpenSpec CLI](https://openspec.dev/docs/stores). The plugin reads registration on the selected environment's machine; it does not register, clone, pull or push stores. Agent access to an external planning path depends on its bb permissions.
+
+Click refresh after changing registration, `store:` configuration or `defaultStore`. Discovery is cached; files in the selected planning root update through native watching. References remain read-only CLI workflow context. Custom workflow schemas, upstream spec browsing and Worksets are not interpreted.
+
+## Updates and limits
+
+Initial loading indexes the planning directory and reads task files. Saving a known `tasks.md` rereads that file; structural changes rescan the file list. Documents load on demand. Panels share a watcher per path, released after the last subscription closes. Reconnect triggers a rescan; a watch error can be retried with refresh. Thread status uses bb events.
+
+Standard active and archived change directories are supported, including `proposal.md`, `design.md`, `tasks.md` and `specs/**/spec.md`. Limits per planning source: 200 changes, 4000 files/directories and 512 KiB per document. Thread discovery considers up to 200 recent visible threads in an environment.
+
+## Development
+
+```sh
+npm ci --include=dev
+npm run check
+npm run verify:git-build
+npm run test:stores # requires OpenSpec CLI; uses isolated temporary stores
+```
+
+`verify:git-build` copies the working source to a temporary directory, installs with `--omit=dev --omit=optional --ignore-scripts`, builds all entries and checks their identity metadata. It does not install or replace a plugin. The temporary copy is removed afterwards. The build may download bb's toolchain on first use.
+
+`bb-app` is pinned as a development dependency for CI and builds without a running bb server. CI runs checks and the production dependency build; it has no release or publishing steps. Store CLI integration is a separate local check.
+
+For live development, run `bb plugin dev`. After a one-off build, use `bb plugin reload openspec` to reload an installed local plugin.
+
+| Files | Purpose |
 | --- | --- |
-| `app.tsx`, `style.css` | Интерфейс навигации и панели треда |
-| `server.ts`, `src/contract.ts` | RPC, привязки и запуск тредов |
-| `host.ts`, `src/file-index.ts`, `src/watch-pool.ts` | Индекс файлов и native watcher на машине проекта |
-| `src/source-resolver.ts` | Разрешение store через CLI и cache источников |
-| `src/live-updates.ts` | Live queries, invalidation и lifecycle |
-| `src/model.ts` | Разбор задач и общая модель |
-| `tests/` | Parser, RPC, индекс и lifecycle watchers |
-| `openspec/` | Спецификации и changes разработки плагина |
-| `docs/` | Исследования, макеты и результаты проверки |
+| `app.tsx`, `style.css` | Navigation and thread panel UI |
+| `server.ts`, `src/contract.ts` | RPC, bindings and thread launch |
+| `host.ts`, `src/file-index.ts`, `src/watch-pool.ts` | Host file index and native watchers |
+| `src/source-resolver.ts` | CLI store discovery and source cache |
+| `src/live-updates.ts` | Query invalidation and subscription lifecycle |
+| `src/model.ts` | Task parser and shared model |
+| `src/messages/`, `src/i18n*.ts*` | Locale registry, catalogs and UI translation |
+| `openspec/` | Plugin development specifications and changes |
 
-Разработка ведётся через OpenSpec. Текущие changes: [первая версия браузера](openspec/changes/add-openspec-task-browser/), [watcher и обновление интерфейса](openspec/changes/watch-openspec-files/) и [stores](openspec/changes/support-openspec-stores/). Макеты в `docs/mockups/` отражают этап проектирования; актуальный интерфейс находится в исходниках.
+Development follows OpenSpec. Changes cover the [task browser](openspec/changes/add-openspec-task-browser/), [watcher](openspec/changes/watch-openspec-files/), [stores](openspec/changes/support-openspec-stores/), [localization](openspec/changes/add-plugin-localization/) and [distribution preparation](openspec/changes/prepare-git-distribution/). Design mockups under `docs/mockups/` record earlier iterations.
 
-Проверка спецификаций:
+Verification reports: [watcher](docs/research/watcher-verification.md), [stores](docs/research/stores-verification.md), [localization](docs/research/localization-verification.md). See [CHANGELOG.md](CHANGELOG.md) for version history and [docs/RELEASING.md](docs/RELEASING.md) for the Git release checklist and future Community submission requirements.
 
-```sh
-openspec validate add-openspec-task-browser --strict --no-interactive
-openspec validate watch-openspec-files --strict --no-interactive
-openspec validate support-openspec-stores --strict --no-interactive
-```
+## License
 
-[Проверка stores в версии 0.3.0](docs/research/stores-verification.md) и [watcher в 0.2.0](docs/research/watcher-verification.md). История изменений — в [CHANGELOG.md](CHANGELOG.md).
-
-## Ограничения
-
-Поддерживается стандартная структура `openspec/changes/<change>/` и `openspec/changes/archive/<date>-<change>/` с `proposal.md`, `design.md`, `tasks.md` и `specs/**/spec.md`. Пользовательские схемы workflow не интерпретируются; stores используют ту же стандартную файловую структуру.
-
-Плагин не редактирует checklist, не архивирует changes и не выполняет проверку спецификаций из интерфейса. Метка «Выполнено» означает, что отмечены все задачи в `tasks.md`; архивирование и результаты проверок учитываются отдельно.
-
-Ограничения на окружение: 200 changes, 4000 файлов/каталогов OpenSpec, документ до 512 КиБ. При превышении показывается ошибка. Поиск связанных тредов и выбор для привязки охватывают до 200 последних видимых тредов окружения.
+[MIT](LICENSE).

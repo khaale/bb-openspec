@@ -13,7 +13,7 @@ test("groups, markers and fenced examples match the read-only checklist", () => 
   );
   assert.deepEqual(
     groups.map((group) => group.title),
-    ["Задачи", "1. Read", "2. Verify"],
+    ["", "1. Read", "2. Verify"],
   );
   assert.deepEqual(progress(groups), { done: 2, total: 6 });
   assert.deepEqual(groups[1].tasks[0], {

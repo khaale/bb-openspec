@@ -1,3 +1,4 @@
+import { pluginError } from "./plugin-error";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import path from "node:path";
@@ -33,10 +34,7 @@ export const runOpenSpec: RunOpenSpec = async (args, cwd) => {
     return JSON.parse(result.stdout);
   } catch (cause) {
     if ((cause as NodeJS.ErrnoException).code === "ENOENT")
-      throw new Error(
-        "Для выбора stores установите OpenSpec CLI на машине окружения и добавьте openspec в PATH.",
-        { cause },
-      );
+      throw pluginError("error.cliRequired", {}, { cause });
     const output = (cause as { stdout?: string }).stdout;
     if (output) {
       let diagnostic:
@@ -66,7 +64,7 @@ export class SourceResolver {
     storeId?: string | null,
   ): Promise<PlanningSource> {
     if (!path.isAbsolute(workspacePath))
-      throw new Error("Требуется абсолютный путь окружения.");
+      throw pluginError("error.absolutePathRequired");
     if (storeId === null)
       return Promise.resolve({ storeId: null, rootPath: workspacePath });
     if (storeId !== undefined) storeIdSchema.parse(storeId);

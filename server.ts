@@ -1,3 +1,5 @@
+import { LANGUAGE_OPTIONS, LANGUAGE_OPTION_LABELS } from "./src/messages";
+import { pluginError } from "./src/plugin-error";
 import path from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
@@ -19,6 +21,17 @@ const bindingSchema = z.object({
 export default function plugin(bb: BbPluginApi) {
   const sdk = bb.sdk;
   const host = createHostClient(bb);
+  bb.settings.define({
+    language: {
+      type: "select",
+      label: "Language",
+      description:
+        "Plugin interface language. Auto follows this browser.",
+      options: LANGUAGE_OPTIONS,
+      experimental_optionLabels: LANGUAGE_OPTION_LABELS,
+      default: "auto",
+    },
+  });
 
   async function planning(environmentId: string, storeId?: string | null) {
     const source = await workspace(sdk, environmentId);
@@ -59,7 +72,7 @@ export default function plugin(bb: BbPluginApi) {
       (thread) =>
         ({
           id: thread.id,
-          title: thread.title ?? thread.titleFallback ?? "Без названия",
+          title: thread.title ?? thread.titleFallback ?? "",
           providerId: thread.providerId,
           status: thread.runtime.displayStatus,
           archived: thread.archivedAt !== null,
@@ -148,8 +161,7 @@ export default function plugin(bb: BbPluginApi) {
             projectId: environment.projectId,
             path: environment.path!,
             hostId: environment.hostId,
-            name:
-              environment.name ?? environment.branchName ?? "Project checkout",
+            name: environment.name ?? environment.branchName ?? "",
           })),
         preferredEnvironmentId,
         preferredChangeId,
@@ -225,7 +237,7 @@ export default function plugin(bb: BbPluginApi) {
         storeId,
       );
       if (!artifacts.some((artifact) => artifact.paths.includes(documentPath)))
-        throw new Error("Артефакт не найден в выбранном изменении.");
+        throw pluginError("error.artifactNotFound");
       return {
         content: await readDocument(
           sdk,
@@ -255,12 +267,11 @@ export default function plugin(bb: BbPluginApi) {
         storeId,
       );
       if (changeId.startsWith("archive/"))
-        throw new Error("Архивное изменение доступно только для просмотра.");
+        throw pluginError("error.archivedReadOnly");
       if (action === ACTION.APPLY) {
-        if (!groups.length)
-          throw new Error("Для реализации требуется tasks.md с задачами.");
+        if (!groups.length) throw pluginError("error.tasksRequired");
       }
-      const context = `Контекст OpenSpec: ${JSON.stringify({ changeId, storeId: selected.storeId, planningRoot: selected.rootPath, changePath: path.join(selected.rootPath, "openspec", changeRelative(changeId)), executionPath: source.path })}.\n${selected.storeId ? `Для команд workflow OpenSpec используй --store ${JSON.stringify(selected.storeId)}. References — только read-only контекст. Не создавай локальную копию change.` : "Используй указанный локальный planningRoot."}\nReferences из конфигурации OpenSpec — read-only upstream контекст; получай их через стандартные instructions workflow CLI.`;
+      const context = `OpenSpec context: ${JSON.stringify({ changeId, storeId: selected.storeId, planningRoot: selected.rootPath, changePath: path.join(selected.rootPath, "openspec", changeRelative(changeId)), executionPath: source.path })}.\n${selected.storeId ? `For OpenSpec workflow commands, use --store ${JSON.stringify(selected.storeId)}. References are read-only context. Do not create a local copy of this change.` : "Use the specified local planningRoot."}\nReferences declared in OpenSpec configuration are read-only upstream context; retrieve them through standard CLI workflow instructions.`;
       const thread = await sdk.threads.spawn({
         projectId: source.projectId,
         environment: { type: "reuse", environmentId },
@@ -280,11 +291,11 @@ export default function plugin(bb: BbPluginApi) {
     attach: async ({ environmentId, changeId, storeId, threadId }) => {
       const { selected } = await target(environmentId, changeId, storeId);
       if (changeId.startsWith("archive/"))
-        throw new Error("Архивное изменение доступно только для просмотра.");
+        throw pluginError("error.archivedReadOnly");
       const thread = await sdk.threads.get({ threadId });
       if (thread.environmentId !== environmentId)
-        throw new Error("Выберите тред из того же окружения.");
-      if (thread.deletedAt !== null) throw new Error("Тред удалён.");
+        throw pluginError("error.threadEnvironment");
+      if (thread.deletedAt !== null) throw pluginError("error.threadDeleted");
       await sdk.threads.updatePluginMetadata({
         threadId,
         set: { environmentId, changeId, storeId: selected.storeId },
@@ -315,7 +326,7 @@ export default function plugin(bb: BbPluginApi) {
     return {
       tools: [],
       skills: [],
-      instructions: `Связанное изменение OpenSpec (данные): ${JSON.stringify(binding.data.changeId)}. ${binding.data.storeId ? `Источник планирования — store ${JSON.stringify(binding.data.storeId)}. Выполни openspec context --store ${JSON.stringify(binding.data.storeId)} --json, чтобы определить его корень; для всех команд workflow передавай тот же --store. Артефакты находятся в openspec/changes/ корня store, а не кодового checkout. Не создавай локальный дубликат. References — read-only контекст.` : "Артефакты находятся в openspec/changes/ этого окружения."} References из конфигурации OpenSpec доступны через стандартные workflow instructions CLI и остаются read-only. Ведите статусы задач в tasks.md; после работы сообщайте результаты проверок.`,
+      instructions: `Linked OpenSpec change (data): ${JSON.stringify(binding.data.changeId)}. ${binding.data.storeId ? `Planning source: store ${JSON.stringify(binding.data.storeId)}. Run openspec context --store ${JSON.stringify(binding.data.storeId)} --json to resolve its root; pass the same --store to all workflow commands. Artifacts are in openspec/changes/ under the store root, not in the code checkout. Do not create a local duplicate. References are read-only context.` : "Artifacts are in openspec/changes/ in this environment."} References declared in OpenSpec configuration are read-only and available through standard CLI workflow instructions. Follow the project instructions and required artifact language. Maintain task status in tasks.md and report verification results.`,
     };
   });
 }

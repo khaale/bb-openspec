@@ -159,7 +159,7 @@ test("document reads reject traversal and files belonging to another change", as
         ...target,
         path: "changes/draft/proposal.md",
       }),
-      /Артефакт не найден/,
+      /artifact was not found/,
     );
     await assert.rejects(
       harness.behavior.callRpc("document", {
@@ -167,7 +167,7 @@ test("document reads reject traversal and files belonging to another change", as
         changeId: "../private",
         path: "secret",
       }),
-      /Недопустимый/,
+      /Invalid/,
     );
     assert.equal(harness.inspection.sdk.callsTo("files.read").length, 0);
   } finally {
@@ -234,7 +234,7 @@ test("launch refuses draft implementation and archived changes without spawning"
         prompt: "Do it",
         execution: null,
       }),
-      /Архивное/,
+      /Archived/,
     );
     assert.equal(harness.inspection.sdk.callsTo("threads.spawn").length, 0);
   } finally {
@@ -250,7 +250,7 @@ test("attachment only writes metadata and rejects another environment", async ()
     );
     await assert.rejects(
       harness.behavior.callRpc("attach", { ...target, threadId: "thread" }),
-      /того же окружения/,
+      /same environment/,
     );
     harness.sdk.stub("threads.get", async () =>
       makeThreadResponse({ environmentId: "env-1" }),

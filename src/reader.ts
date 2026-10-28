@@ -1,3 +1,4 @@
+import { pluginError } from "./plugin-error";
 import path from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import type { Workspace } from "./model";
@@ -16,16 +17,14 @@ export async function workspace(
     environment.status !== "ready" ||
     environment.lifecycle.phase !== "active"
   ) {
-    throw new Error(
-      "Окружение недоступно. Выберите готовое окружение проекта.",
-    );
+    throw pluginError("error.environmentUnavailable");
   }
   return {
     id: environment.id,
     projectId: environment.projectId,
     path: environment.path,
     hostId: environment.hostId,
-    name: environment.name ?? environment.branchName ?? "Project checkout",
+    name: environment.name ?? environment.branchName ?? "",
   };
 }
 
@@ -46,8 +45,7 @@ export async function readDocument(
     path: path.join(rootPath, relative),
   });
   if (file.sizeBytes > LIMITS.fileBytes)
-    throw new Error("Документ превышает 512 КиБ. Откройте его в редакторе.");
-  if (file.contentEncoding !== "utf8")
-    throw new Error("Документ не является текстом UTF-8.");
+    throw pluginError("error.documentTooLarge");
+  if (file.contentEncoding !== "utf8") throw pluginError("error.notUtf8");
   return file.content;
 }

@@ -13,17 +13,11 @@ export const actionSchema = z.enum([
 ]);
 export type Action = z.infer<typeof actionSchema>;
 export const ACTION_LABEL: Record<Action, string> = {
-  explore: "Проработать",
-  apply: "Реализовать",
-  verify: "Проверить",
+  explore: "Explore",
+  apply: "Implement",
+  verify: "Verify",
 };
 export const artifactKinds = ["proposal", "specs", "design", "tasks"] as const;
-export const ARTIFACT_LABEL = {
-  proposal: "Proposal",
-  specs: "Specs",
-  design: "Design",
-  tasks: "Tasks",
-} as const;
 export type ArtifactKind = (typeof artifactKinds)[number];
 export const taskSchema = z.object({
   number: z.string(),
@@ -106,7 +100,7 @@ export function parseTasks(markdown: string): TaskGroup[] {
     const item = /^ {0,3}[-*+]\s+\[([^\]]*)\]\s*(.*)$/.exec(line);
     if (!item) continue;
     if (!current) {
-      current = { title: "Задачи", tasks: [] };
+      current = { title: "", tasks: [] };
       groups.push(current);
     }
     const numbered = /^(\d+(?:\.\d+)*\.?)[ \t]+(.+)$/.exec(item[2]);
@@ -140,11 +134,11 @@ export function initialPrompt(
   const folder = `${planningRoot ? `${planningRoot}/` : ""}openspec/changes/${changeId}/`;
   const instruction = {
     explore:
-      "Уточни открытые вопросы и подготовь недостающие артефакты OpenSpec. К реализации пока не переходи.",
+      "Clarify open questions and prepare missing OpenSpec artifacts. Do not start implementation yet.",
     apply:
-      "Выполняй незавершённые задачи из tasks.md. Обновляй отметки по мере завершения и выполняй указанные проверки. Если нужны решения пользователя, задай вопрос.",
+      "Complete the pending tasks in tasks.md. Update checkboxes as work is completed and run the specified checks. Ask the user when a decision is needed.",
     verify:
-      "Сопоставь реализацию со спецификациями и tasks.md. Сообщи о расхождениях и результатах проверок. Не изменяй файлы.",
+      "Compare the implementation with the specifications and tasks.md. Report discrepancies and verification results. Do not modify files.",
   }[action];
-  return `${ACTION_LABEL[action]} изменение ${changeId}.\n\nПрочитай доступные артефакты в ${folder}: proposal.md, specs/, design.md и tasks.md. Следуй инструкциям проекта.\n\n${instruction}`;
+  return `${ACTION_LABEL[action]} change ${changeId}.\n\nRead the available artifacts in ${folder}: proposal.md, specs/, design.md, and tasks.md. Follow the project instructions, including the required language for artifacts.\n\n${instruction}`;
 }

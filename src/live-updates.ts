@@ -1,3 +1,4 @@
+import { pluginError } from "./plugin-error";
 import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { hostContract, hostSignals } from "./host-contract";
@@ -240,7 +241,7 @@ function rpcInput(input: unknown): {
     !("environmentId" in input) ||
     typeof input.environmentId !== "string"
   )
-    throw new Error("Требуется окружение наблюдения.");
+    throw pluginError("error.environmentRequired");
   return {
     environmentId: input.environmentId,
     ...sourceSelectionSchema.parse(input),

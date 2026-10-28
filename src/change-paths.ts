@@ -1,3 +1,4 @@
+import { pluginError } from "./plugin-error";
 import path from "node:path";
 import { artifactKinds } from "./model";
 
@@ -11,7 +12,7 @@ export function safeRelative(value: string): string {
       .split("/")
       .some((segment) => segment === ".." || segment === "." || !segment)
   ) {
-    throw new Error("Недопустимый путь OpenSpec.");
+    throw pluginError("error.invalidPath");
   }
   return value;
 }
@@ -22,7 +23,7 @@ export function changeRelative(changeId: string): string {
     !(parts.length === 1 && parts[0] !== "archive") &&
     !(parts.length === 2 && parts[0] === "archive")
   ) {
-    throw new Error("Недопустимый идентификатор изменения.");
+    throw pluginError("error.invalidChangeId");
   }
   return `changes/${changeId}`;
 }

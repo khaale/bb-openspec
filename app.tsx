@@ -1,4 +1,10 @@
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import {
+  Children,
+  useCallback,
+  useEffect,
+  useState,
+  type ReactNode,
+} from "react";
 import {
   definePluginApp,
   useBbContext,
@@ -32,8 +38,6 @@ import { rpcContract } from "./src/contract";
 import type { PlanningSource } from "./src/planning-source";
 import {
   ACTION,
-  ACTION_LABEL,
-  ARTIFACT_LABEL,
   initialPrompt,
   progress,
   type Action,
@@ -43,6 +47,9 @@ import {
 } from "./src/model";
 import { useQuery, liveQueryView } from "./src/use-query";
 import { errorMessage } from "./src/reader-error";
+import { I18nProvider, useI18n } from "./src/i18n-react";
+import { localizedError } from "./src/plugin-error";
+import type { MessageKey } from "./src/i18n";
 import "./style.css";
 
 type Rpc = ReturnType<typeof useRpc<typeof rpcContract>>;
@@ -56,12 +63,15 @@ function Message({
   children: ReactNode;
   error?: boolean;
 }) {
+  const { locale } = useI18n();
   return (
     <div
       className={`os-message${error ? " os-error" : ""}`}
       role={error ? "alert" : "status"}
     >
-      {children}
+      {Children.map(children, (child) =>
+        typeof child === "string" ? localizedError(child, locale) : child,
+      )}
     </div>
   );
 }
@@ -124,9 +134,10 @@ function Hint({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function ProgressRing({ done, total }: { done: number; total: number }) {
+  const { t, percent: formatPercent } = useI18n();
   const percent = total ? Math.round((done / total) * 100) : 0;
   return (
-    <div className="os-ring" aria-label={`${done} из ${total} задач выполнено`}>
+    <div className="os-ring" aria-label={t("progressLabel", { done, total })}>
       <svg viewBox="0 0 52 52" fill="none" aria-hidden="true">
         <circle cx="26" cy="26" r="22" className="os-track" />
         <circle
@@ -137,7 +148,7 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
           strokeDasharray={`${percent * 1.382} 138.2`}
         />
       </svg>
-      <span>{total ? `${percent}%` : "—"}</span>
+      <span>{total ? formatPercent(done / total) : "—"}</span>
     </div>
   );
 }
@@ -157,6 +168,7 @@ function LaunchDialog({
   onClose: () => void;
   onLaunched: (id: string) => void;
 }) {
+  const { t, locale } = useI18n();
   const [action, setAction] = useState<Action>(
     change.total ? ACTION.APPLY : ACTION.EXPLORE,
   );
@@ -221,9 +233,9 @@ function LaunchDialog({
         if (!open && !pending) onClose();
       }}
     >
-      <DialogContent className="os-dialog">
+      <DialogContent className="os-dialog" lang={locale}>
         <DialogHeader>
-          <DialogTitle>Новый тред для change</DialogTitle>
+          <DialogTitle>{t("newThread")}</DialogTitle>
           <DialogDescription className="os-mono">{change.id}</DialogDescription>
         </DialogHeader>
         <div className="os-modes">
@@ -240,13 +252,13 @@ function LaunchDialog({
                 );
               }}
             >
-              {ACTION_LABEL[value]}
+              {t(`action.${value}`)}
               <small>
                 {
                   {
-                    explore: "Уточнить артефакты",
-                    apply: "Выполнить задачи",
-                    verify: "Сверить со specs",
+                    explore: t("actionHint.explore"),
+                    apply: t("actionHint.apply"),
+                    verify: t("actionHint.verify"),
                   }[value]
                 }
               </small>
@@ -254,7 +266,7 @@ function LaunchDialog({
           ))}
         </div>
         <div className="os-launch-context">
-          <span>{source.name}</span>
+          <span>{source.name || t("projectCheckout")}</span>
           <span className="os-mono">{source.path}</span>
           {planningSource.storeId && (
             <span className="os-mono">
@@ -274,7 +286,7 @@ function LaunchDialog({
                 setExecution({ providerId: "", model: "", reasoningLevel: "" });
             }}
           >
-            {custom ? "Свои настройки агента" : "По настройкам bb"}
+            {custom ? t("customAgentSettings") : t("bbDefaults")}
           </Button>
           {custom && execution && (
             <div className="os-pickers">
@@ -295,7 +307,7 @@ function LaunchDialog({
           )}
         </div>
         <label className="os-field" htmlFor="os-prompt">
-          Первое сообщение
+          {t("firstMessage")}
         </label>
         <textarea
           id="os-prompt"
@@ -308,7 +320,7 @@ function LaunchDialog({
         {error && <Message error>{error}</Message>}
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={onClose}>
-            Отмена
+            {t("cancel")}
           </Button>
           <Button
             className="os-primary"
@@ -317,7 +329,7 @@ function LaunchDialog({
             }
             onClick={() => void launch()}
           >
-            {pending ? "Запуск…" : "Создать и запустить"}
+            {pending ? t("launching") : t("createAndLaunch")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -340,6 +352,7 @@ function AttachDialog({
   onClose: () => void;
   onAttached: () => void;
 }) {
+  const { t, locale } = useI18n();
   const [threadId, setThreadId] = useState("");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string>();
@@ -379,27 +392,30 @@ function AttachDialog({
         if (!open && !pending) onClose();
       }}
     >
-      <DialogContent className="os-dialog">
+      <DialogContent className="os-dialog" lang={locale}>
         <DialogHeader>
-          <DialogTitle>Привязать тред</DialogTitle>
+          <DialogTitle>{t("attachThread")}</DialogTitle>
           <DialogDescription>
-            {change.title} · {source.name}
+            {change.title} · {source.name || t("projectCheckout")}
           </DialogDescription>
         </DialogHeader>
         {choices.error && <Message error>{choices.error}</Message>}
-        {!choices.data && !choices.error && <Message>Загрузка тредов…</Message>}
+        {!choices.data && !choices.error && (
+          <Message>{t("loadingThreads")}</Message>
+        )}
         {choices.data &&
           (choices.data.length ? (
             <select
-              aria-label="Тред"
+              aria-label={t("thread")}
               value={threadId}
               onChange={(event) => setThreadId(event.target.value)}
               disabled={pending}
             >
-              <option value="">Выберите тред</option>
+              <option value="">{t("chooseThread")}</option>
               {choices.data.map((thread) => (
                 <option key={thread.id} value={thread.id}>
-                  {thread.title} · {thread.providerId} · {thread.id.slice(-6)}
+                  {thread.title || t("untitled")} · {thread.providerId} ·{" "}
+                  {thread.id.slice(-6)}
                   {thread.changeId
                     ? ` → ${thread.storeId ? `${thread.storeId}/` : ""}${thread.changeId}`
                     : ""}
@@ -407,22 +423,23 @@ function AttachDialog({
               ))}
             </select>
           ) : (
-            <Message>В этом окружении пока нет тредов.</Message>
+            <Message>{t("noThreads")}</Message>
           ))}
         {replacing && (
           <p className="os-link-notice">
-            Текущая связь:{" "}
-            {previousChoice?.storeId ? `${previousChoice.storeId}/` : ""}
-            {previousChange}. Подтверждение заменит её на {change.id}.
+            {t("replaceBinding", {
+              previous: `${previousChoice?.storeId ? `${previousChoice.storeId}/` : ""}${previousChange}`,
+              next: change.id,
+            })}
           </p>
         )}
         {error && <Message error>{error}</Message>}
         <DialogFooter>
           <Button variant="outline" disabled={pending} onClick={onClose}>
-            Отмена
+            {t("cancel")}
           </Button>
           <Button disabled={pending || !threadId} onClick={() => void attach()}>
-            {pending ? "Привязка…" : replacing ? "Перепривязать" : "Привязать"}
+            {pending ? t("linking") : replacing ? t("relink") : t("link")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -430,18 +447,19 @@ function AttachDialog({
   );
 }
 
-const THREAD_STATUS: Record<string, string> = {
-  active: "Работает",
-  idle: "Ожидает",
-  error: "Ошибка",
-  pending: "В очереди",
-  starting: "Запускается",
-  provisioning: "Подготовка",
-  stopping: "Останавливается",
-  "waiting-for-host": "Ожидает машину",
+const THREAD_STATUS: Record<string, MessageKey> = {
+  active: "status.active",
+  idle: "status.idle",
+  error: "status.error",
+  pending: "status.pending",
+  starting: "status.starting",
+  provisioning: "status.provisioning",
+  stopping: "status.stopping",
+  "waiting-for-host": "status.waiting-for-host",
 };
 
 function ThreadIndicator({ threads }: { threads: LinkedThread[] }) {
+  const { t, number } = useI18n();
   const running = threads.find((thread) => thread.status === "active");
   const attention = threads.find((thread) => thread.status === "error");
   const queued = threads.find((thread) =>
@@ -454,15 +472,17 @@ function ThreadIndicator({ threads }: { threads: LinkedThread[] }) {
   return (
     <span
       className={`os-thread-indicator${running ? " os-running" : ""}${attention && !running ? " os-thread-error" : ""}`}
-      title={thread.title}
+      title={thread.title || t("untitled")}
     >
       <i aria-hidden="true" />
       {running
-        ? "Агент работает"
+        ? t("agentWorking")
         : thread.status === "idle"
-          ? "Агент ожидает"
-          : (THREAD_STATUS[thread.status] ?? thread.status)}
-      {threads.length > 1 ? ` · ${threads.length}` : ""}
+          ? t("agentIdle")
+          : THREAD_STATUS[thread.status]
+            ? t(THREAD_STATUS[thread.status])
+            : thread.status}
+      {threads.length > 1 ? ` · ${number(threads.length)}` : ""}
     </span>
   );
 }
@@ -480,6 +500,7 @@ function ChangeDetail({
   change: Change;
   onRefresh: () => void;
 }) {
+  const { t, number, specCount, taskCount, locale } = useI18n();
   const navigate = useBbNavigate();
   const [view, setView] = useState<View>(VIEW.TASKS);
   const [documentPath, setDocumentPath] = useState<string>();
@@ -513,12 +534,12 @@ function ChangeDetail({
     artifact.paths.includes(documentPath ?? ""),
   );
   const state = change.archived
-    ? "В архиве"
+    ? t("archived")
     : !counts.total
-      ? "Подготовка артефактов"
+      ? t("preparingArtifacts")
       : counts.done === counts.total
-        ? "Задачи выполнены"
-        : `Задачи: ${counts.done} из ${counts.total}`;
+        ? t("tasksComplete")
+        : `${number(counts.done)} / ${taskCount(counts.total)}`;
   return (
     <main className="os-main">
       <div className="os-breadcrumb">changes / {change.id}</div>
@@ -537,7 +558,7 @@ function ChangeDetail({
           onClick={() => setDialog("launch")}
         >
           <Icon name="Play" />
-          Запустить агента
+          {t("launchAgent")}
         </Button>
         <Button
           variant="outline"
@@ -546,7 +567,7 @@ function ChangeDetail({
           onClick={() => setDialog("attach")}
         >
           <Icon name="Plus" />
-          Привязать тред
+          {t("attachThread")}
         </Button>
       </div>
       <div className="os-artifacts">
@@ -561,18 +582,18 @@ function ChangeDetail({
             <span aria-hidden="true" className="os-artifact-icon">
               {artifact.paths.length ? "✓" : "○"}
             </span>
-            <b>{ARTIFACT_LABEL[artifact.kind]}</b>
+            <b>{t(`artifact.${artifact.kind}`)}</b>
             <small>
               {artifact.paths.length
                 ? artifact.kind === "specs"
-                  ? `${artifact.paths.length} specs`
-                  : "Файл есть"
-                : "Нет файла"}
+                  ? specCount(artifact.paths.length)
+                  : t("fileExists")
+                : t("fileMissing")}
             </small>
           </button>
         ))}
       </div>
-      <div className="os-tabs" role="tablist" aria-label="Содержимое изменения">
+      <div className="os-tabs" role="tablist" aria-label={t("changeContents")}>
         <button
           role="tab"
           aria-selected={!documentPath && view === VIEW.TASKS}
@@ -581,9 +602,9 @@ function ChangeDetail({
             setView(VIEW.TASKS);
           }}
         >
-          Задачи{" "}
+          {t("tasks")}{" "}
           <em>
-            {counts.done}/{counts.total}
+            {number(counts.done)}/{number(counts.total)}
           </em>
         </button>
         <button
@@ -594,18 +615,18 @@ function ChangeDetail({
             setView(VIEW.THREADS);
           }}
         >
-          Треды <em>{detail.data?.threads.length ?? 0}</em>
+          {t("threads")} <em>{number(detail.data?.threads.length ?? 0)}</em>
         </button>
         {documentKind && (
           <span className="os-doc-label">
-            {ARTIFACT_LABEL[documentKind.kind]}
+            {t(`artifact.${documentKind.kind}`)}
           </span>
         )}
-        <Hint label="Обновить изменение">
+        <Hint label={t("refreshChange")}>
           <Button
             variant="ghost"
             size="icon"
-            aria-label="Обновить изменение"
+            aria-label={t("refreshChange")}
             className="os-refresh"
             onClick={() => {
               detail.refresh();
@@ -622,7 +643,7 @@ function ChangeDetail({
         <Message error>
           {detail.error}
           <Button variant="link" size="sm" onClick={detail.refresh}>
-            Повторить
+            {t("retry")}
           </Button>
         </Message>
       )}
@@ -630,7 +651,7 @@ function ChangeDetail({
         <section className="os-document">
           {documentKind?.kind === "specs" && (
             <select
-              aria-label="Спецификация"
+              aria-label={t("specification")}
               value={documentPath}
               onChange={(event) => setDocumentPath(event.target.value)}
             >
@@ -659,14 +680,14 @@ function ChangeDetail({
                 })
               }
             >
-              Открыть файл ↗
+              {t("openFile")}
             </Button>
           </div>
           {documentQuery.error && (
             <Message error>{documentQuery.error}</Message>
           )}
           {!documentQuery.data && !documentQuery.error && (
-            <Message>Загрузка документа…</Message>
+            <Message>{t("loadingDocument")}</Message>
           )}
           {documentQuery.data && (
             <Markdown content={documentQuery.data.content} />
@@ -674,7 +695,7 @@ function ChangeDetail({
         </section>
       ) : (
         <section role="tabpanel">
-          {!detail.data && !detail.error && <Message>Загрузка…</Message>}
+          {!detail.data && !detail.error && <Message>{t("loading")}</Message>}
           {detail.data &&
             view === VIEW.TASKS &&
             (detail.data.groups.length ? (
@@ -684,10 +705,12 @@ function ChangeDetail({
                     <span className="os-index">
                       {String(index + 1).padStart(2, "0")}
                     </span>
-                    {group.title.replace(/^\d+\.\s*/, "")}
+                    {group.title
+                      ? group.title.replace(/^\d+\.\s*/, "")
+                      : t("tasks")}
                     <small>
-                      {group.tasks.filter((task) => task.done).length} /{" "}
-                      {group.tasks.length}
+                      {number(group.tasks.filter((task) => task.done).length)} /{" "}
+                      {number(group.tasks.length)}
                     </small>
                   </h2>
                   <ul>
@@ -699,7 +722,9 @@ function ChangeDetail({
                         <span
                           className="os-task-status"
                           role="img"
-                          aria-label={task.done ? "Выполнено" : "Не выполнено"}
+                          aria-label={
+                            task.done ? t("completed") : t("notCompleted")
+                          }
                         >
                           {task.done ? "✓" : "○"}
                         </span>
@@ -714,14 +739,14 @@ function ChangeDetail({
               ))
             ) : (
               <Message>
-                Задач пока нет.
+                {t("noTasksYet")}
                 {!change.archived && (
                   <Button
                     variant="link"
                     size="sm"
                     onClick={() => setDialog("launch")}
                   >
-                    Проработать с агентом
+                    {t("exploreWithAgent")}
                   </Button>
                 )}
               </Message>
@@ -737,18 +762,20 @@ function ChangeDetail({
                 >
                   <span className="os-avatar">↗</span>
                   <span>
-                    <strong>{thread.title}</strong>
+                    <strong>{thread.title || t("untitled")}</strong>
                     <small>
                       {thread.providerId} ·{" "}
-                      {THREAD_STATUS[thread.status] ?? thread.status}
-                      {thread.archived ? " · архив" : ""}
+                      {THREAD_STATUS[thread.status]
+                        ? t(THREAD_STATUS[thread.status])
+                        : thread.status}
+                      {thread.archived ? t("archiveSuffix") : ""}
                     </small>
                   </span>
                   <span className="os-thread-arrow">↗</span>
                 </button>
               ))
             ) : (
-              <Message>Связанных тредов пока нет.</Message>
+              <Message>{t("noLinkedThreads")}</Message>
             ))}
         </section>
       )}
@@ -792,6 +819,7 @@ function OpenSpecPage({
   subPath?: string;
   threadId?: string;
 }) {
+  const { t, number, taskCount, locale } = useI18n();
   const context = useBbContext();
   const rpc = useRpc<typeof rpcContract>();
   const [routeEnvironment, ...routeChangeParts] = subPath.split("/");
@@ -915,14 +943,14 @@ function OpenSpecPage({
     sources.data?.projects[0]?.id;
   const projectName =
     sources.data?.projects.find((project) => project.id === selectedProjectId)
-      ?.name ?? "Выбрать проект";
+      ?.name ?? t("chooseProject");
   const displayedStoreId = changes.data?.source.storeId ?? selectedStoreId;
   const sourceLabel = source
-    ? `${projectName} · ${source.name}${displayedStoreId ? ` · store: ${displayedStoreId}` : ""}`
+    ? `${projectName} · ${source.name || t("projectCheckout")}${displayedStoreId ? ` · store: ${displayedStoreId}` : ""}`
     : projectName;
   return (
     <TooltipProvider delayDuration={350}>
-      <div className="os-root">
+      <div className="os-root" lang={locale}>
         <header
           className="os-top"
           onKeyDown={(event) => {
@@ -930,13 +958,13 @@ function OpenSpecPage({
           }}
         >
           <Hint
-            label={`${sourceLabel} — ${editingSource ? "свернуть выбор" : "сменить контекст"}`}
+            label={`${sourceLabel} — ${editingSource ? t("collapseSelection") : t("changeContext")}`}
           >
             <Button
               variant="ghost"
               size="sm"
               className="os-source-summary"
-              aria-label={`Проект и окружение: ${sourceLabel}`}
+              aria-label={t("projectEnvironment", { source: sourceLabel })}
               aria-expanded={editingSource}
               onClick={() => setEditingSource((value) => !value)}
             >
@@ -945,7 +973,9 @@ function OpenSpecPage({
                 <span className="os-source-store">· {displayedStoreId}</span>
               ) : (
                 source && (
-                  <span className="os-source-environment">· {source.name}</span>
+                  <span className="os-source-environment">
+                    · {source.name || t("projectCheckout")}
+                  </span>
                 )
               )}
               <svg
@@ -962,19 +992,11 @@ function OpenSpecPage({
               </svg>
             </Button>
           </Hint>
-          <Hint
-            label={
-              compact ? "Показать список и детали" : "Показать только карточки"
-            }
-          >
+          <Hint label={compact ? t("showDetails") : t("showCards")}>
             <Button
               variant="ghost"
               size="icon"
-              aria-label={
-                compact
-                  ? "Показать список и детали"
-                  : "Показать только карточки"
-              }
+              aria-label={compact ? t("showDetails") : t("showCards")}
               aria-pressed={compact}
               className="os-view-toggle"
               onClick={() => {
@@ -985,11 +1007,11 @@ function OpenSpecPage({
               <ViewModeIcon compact={compact} />
             </Button>
           </Hint>
-          <Hint label="Обновить OpenSpec">
+          <Hint label={t("refreshOpenSpec")}>
             <Button
               variant="ghost"
               size="icon"
-              aria-label="Обновить OpenSpec"
+              aria-label={t("refreshOpenSpec")}
               className="os-reload"
               onClick={() => {
                 sources.refresh();
@@ -1002,7 +1024,7 @@ function OpenSpecPage({
           {editingSource && (
             <div className="os-source-pickers">
               <select
-                aria-label="Проект"
+                aria-label={t("project")}
                 value={
                   source?.projectId ??
                   projectId ??
@@ -1019,7 +1041,7 @@ function OpenSpecPage({
                   setArchived(false);
                 }}
               >
-                {!sources.data && <option>Загрузка…</option>}
+                {!sources.data && <option>{t("loading")}</option>}
                 {sources.data?.projects.map((project) => (
                   <option key={project.id} value={project.id}>
                     {project.name}
@@ -1027,7 +1049,7 @@ function OpenSpecPage({
                 ))}
               </select>
               <select
-                aria-label="Окружение"
+                aria-label={t("environment")}
                 value={source?.id ?? ""}
                 disabled={!!threadId || !sources.data?.environments.length}
                 onChange={(event) => {
@@ -1038,17 +1060,17 @@ function OpenSpecPage({
                 }}
               >
                 {!sources.data?.environments.length && (
-                  <option value="">Нет готовых окружений</option>
+                  <option value="">{t("noReadyEnvironments")}</option>
                 )}
                 {sources.data?.environments.map((environment) => (
                   <option key={environment.id} value={environment.id}>
-                    {environment.name}
+                    {environment.name || t("projectCheckout")}
                   </option>
                 ))}
               </select>
               <select
                 className="os-planning-picker"
-                aria-label="Источник OpenSpec"
+                aria-label={t("planningSource")}
                 value={
                   selectedStoreId === undefined
                     ? "auto"
@@ -1071,8 +1093,8 @@ function OpenSpecPage({
                   setEditingSource(false);
                 }}
               >
-                <option value="auto">OpenSpec · Автоматически</option>
-                <option value="local">OpenSpec · Локальный</option>
+                <option value="auto">{t("sourceAuto")}</option>
+                <option value="local">{t("sourceLocal")}</option>
                 {selectedStoreId &&
                   !planningSources.data?.stores.some(
                     (store) => store.id === selectedStoreId,
@@ -1100,11 +1122,11 @@ function OpenSpecPage({
         {refreshError && <Message error>{refreshError}</Message>}
         {changes.data?.watchError && (
           <Message error>
-            Автообновление недоступно: {changes.data.watchError}
+            {t("watchUnavailable")} {changes.data.watchError}
           </Message>
         )}
         {!source && sources.data && (
-          <Message>Выберите проект с готовым окружением.</Message>
+          <Message>{t("chooseReadyProject")}</Message>
         )}
         {source && (
           <div
@@ -1119,7 +1141,7 @@ function OpenSpecPage({
                     setChangeId("");
                   }}
                 >
-                  Активные · {activeCount}
+                  {t("active")} · {number(activeCount)}
                 </button>
                 <button
                   aria-pressed={effectiveArchived}
@@ -1128,21 +1150,21 @@ function OpenSpecPage({
                     setChangeId("");
                   }}
                 >
-                  Архив · {archiveCount}
+                  {t("archive")} · {number(archiveCount)}
                 </button>
               </div>
               <Input
-                aria-label="Поиск изменений"
-                placeholder="Найти изменение…"
+                aria-label={t("searchChanges")}
+                placeholder={t("findChange")}
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
               />
-              <div className="os-section-name">Изменения</div>
+              <div className="os-section-name">{t("changes")}</div>
               {compact && changes.error && (
                 <Message error>{changes.error}</Message>
               )}
               {compact && !changes.data && !changes.error && (
-                <Message>Загрузка изменений…</Message>
+                <Message>{t("loadingChanges")}</Message>
               )}
               <div className="os-changes">
                 {matching.map((change) => (
@@ -1160,8 +1182,9 @@ function OpenSpecPage({
                     <div className="os-change-foot">
                       <span
                         className="os-task-progress"
+                        title={taskCount(change.total)}
                         role="progressbar"
-                        aria-label="Выполнение задач"
+                        aria-label={t("taskProgress")}
                         aria-valuemin={0}
                         aria-valuemax={change.total || 1}
                         aria-valuenow={change.done}
@@ -1174,17 +1197,19 @@ function OpenSpecPage({
                       </span>
                       <span>
                         {change.error
-                          ? "Ошибка"
+                          ? t("error")
                           : change.total
-                            ? `${change.done} / ${change.total}`
-                            : "Нет задач"}
+                            ? `${number(change.done)} / ${number(change.total)}`
+                            : t("noTasks")}
                       </span>
                     </div>
                     <div className="os-change-meta">
                       {change.total > 0 &&
                         change.done === change.total &&
                         !change.error && (
-                          <span className="os-completion">✓ Выполнено</span>
+                          <span className="os-completion">
+                            ✓ {t("completed")}
+                          </span>
                         )}
                       <ThreadIndicator threads={change.threads} />
                     </div>
@@ -1193,9 +1218,7 @@ function OpenSpecPage({
               </div>
               {changes.data && !matching.length && (
                 <Message>
-                  {changes.data.missing
-                    ? "OpenSpec не инициализирован."
-                    : "Изменений не найдено."}
+                  {changes.data.missing ? t("notInitialized") : t("noChanges")}
                 </Message>
               )}
             </aside>
@@ -1207,19 +1230,19 @@ function OpenSpecPage({
                   className="os-back"
                   onClick={() => setCompactDetail(false)}
                 >
-                  ← Все изменения
+                  {t("allChanges")}
                 </Button>
               )}
               {changes.error && (
                 <Message error>
                   {changes.error}
                   <Button variant="link" size="sm" onClick={refreshFiles}>
-                    Повторить
+                    {t("retry")}
                   </Button>
                 </Message>
               )}
               {!changes.data && !changes.error && (
-                <Message>Загрузка изменений…</Message>
+                <Message>{t("loadingChanges")}</Message>
               )}
               {selected && changes.data && (!compact || compactDetail) && (
                 <ChangeDetail
@@ -1239,8 +1262,8 @@ function OpenSpecPage({
               {changes.data && !selected && (
                 <Message>
                   {changes.data.missing
-                    ? "В этом окружении нет каталога OpenSpec."
-                    : "Нет изменений в выбранном разделе."}
+                    ? t("noOpenSpecDirectory")
+                    : t("emptySection")}
                 </Message>
               )}
             </div>
@@ -1252,10 +1275,18 @@ function OpenSpecPage({
 }
 
 function NavigationPage({ subPath }: PluginNavPanelProps) {
-  return <OpenSpecPage subPath={subPath} />;
+  return (
+    <I18nProvider>
+      <OpenSpecPage subPath={subPath} />
+    </I18nProvider>
+  );
 }
 function ThreadPanel({ threadId }: { threadId: string }) {
-  return <OpenSpecPage threadId={threadId} />;
+  return (
+    <I18nProvider>
+      <OpenSpecPage threadId={threadId} />
+    </I18nProvider>
+  );
 }
 
 export default definePluginApp((app) => {

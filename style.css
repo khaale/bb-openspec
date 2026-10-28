@@ -807,3 +807,8 @@
 .os-source-pickers .os-message {
   grid-column: 1 / -1;
 }
+
+.os-artifact b,
+.os-artifact small {
+  overflow-wrap: anywhere;
+}
