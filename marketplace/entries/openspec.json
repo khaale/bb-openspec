@@ -1,7 +1,7 @@
 {
   "id": "openspec",
   "displayName": "OpenSpec",
-  "description": "Keep OpenSpec changes, task progress and specifications beside your agent threads. Browse current and proposed specifications with before-and-after comparisons. Launch or link agents and follow their status while task progress stays in repository files. Requires bb 0.47 or later; stores require OpenSpec CLI, and agent runs use your configured provider.",
+  "description": "Browse OpenSpec changes and specifications, track task progress, and launch linked agents.",
   "icon": "ListTodo",
   "author": {
     "name": "Aleksander Khanteev",
@@ -13,13 +13,7 @@
     "code-and-reviews"
   ],
   "tags": [
-    "specifications",
-    "task-progress",
-    "change-management",
-    "agent-threads",
-    "spec-driven",
-    "workflow",
-    "stores"
+    "openspec"
   ],
   "source": {
     "git": {

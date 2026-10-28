@@ -8,7 +8,7 @@
   },
   "bb": {
     "name": "OpenSpec",
-    "description": "Browse OpenSpec changes and specifications, preview proposed updates and launch linked agents.",
+    "description": "Browse OpenSpec changes and specifications, track task progress, and launch linked agents.",
     "branding": {
       "icon": "ListTodo"
     },
@@ -63,7 +63,7 @@
     "check": "npm run typecheck && npm test && npm run build",
     "test:specifications": "tsx scripts/verify-specifications.ts"
   },
-  "description": "Browse OpenSpec changes and specifications, preview proposed updates and launch linked agents.",
+  "description": "Browse OpenSpec changes and specifications, track task progress, and launch linked agents.",
   "license": "MIT",
   "repository": {
     "type": "git",
