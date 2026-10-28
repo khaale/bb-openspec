@@ -83,6 +83,24 @@ test("live producer scopes file invalidation, reconciles on restart and releases
       hostId: "host",
       payload: {
         environmentId: "env",
+        paths: ["changes/example/design.md"],
+        structural: false,
+        rescan: false,
+        error: null,
+      },
+    });
+    assert.deepEqual(
+      new Set(invalidations.flat()),
+      new Set([
+        "openspec:document:env:changes/example/design.md",
+        "openspec:changes:env",
+      ]),
+    );
+    invalidations.length = 0;
+    await changed({
+      hostId: "host",
+      payload: {
+        environmentId: "env",
         paths: [],
         structural: true,
         rescan: true,

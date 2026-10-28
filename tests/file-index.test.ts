@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, rm, symlink } from "node:fs/promises";
+import {
+  mkdtemp,
+  mkdir,
+  writeFile,
+  rm,
+  symlink,
+  utimes,
+} from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { setTimeout as delay } from "node:timers/promises";
@@ -231,6 +238,65 @@ test("watch errors are visible and manual refresh replaces the failed watch", as
     assert.equal((await pool.change(f.root, "a")).change.done, 1);
   } finally {
     await pool.dispose();
+    await f.dispose();
+  }
+});
+
+test("a subscription switches planning roots and closes the old watcher", async () => {
+  const left = await fixture();
+  const right = await fixture();
+  const pool = new WatchPool();
+  const d = driver();
+  try {
+    const subscription = { environmentId: "code-env", subscriptionId: "panel" };
+    await pool.subscribe(
+      { ...subscription, workspacePath: left.root },
+      d.context,
+    );
+    await pool.subscribe(
+      { ...subscription, workspacePath: right.root },
+      d.context,
+    );
+    assert.equal(d.watches.length, 2);
+    assert.equal(d.watches[0].disposed, true);
+    assert.equal(
+      d.watches[1].options.rootPath,
+      path.join(right.root, "openspec"),
+    );
+    await right.write("changes/a/tasks.md", "- [x] Store task");
+    await d.watches[1].listener({
+      kind: "changed",
+      changes: [{ path: "changes/a/tasks.md", type: "update" }],
+    });
+    assert.equal((await pool.change(right.root, "a")).change.done, 1);
+    assert.equal((await pool.change(left.root, "a")).change.done, 0);
+    await pool.unsubscribe("panel");
+    assert.equal(d.watches[1].disposed, true);
+  } finally {
+    await pool.dispose();
+    await left.dispose();
+    await right.dispose();
+  }
+});
+
+test("artifact modification times update recency without reading unrelated tasks", async () => {
+  const f = await fixture();
+  const reads: string[] = [];
+  const index = new OpenSpecIndex(f.root, (file) => reads.push(file));
+  try {
+    await index.initialize();
+    reads.length = 0;
+    await f.write("changes/a/design.md", "Updated design");
+    const timestamp = new Date("2030-01-01T00:00:00Z");
+    await utimes(
+      path.join(f.root, "openspec/changes/a/design.md"),
+      timestamp,
+      timestamp,
+    );
+    await index.update([{ path: "changes/a/design.md", type: "create" }]);
+    assert.equal(index.change("a").change.updatedAt, timestamp.getTime());
+    assert.deepEqual(reads, []);
+  } finally {
     await f.dispose();
   }
 });

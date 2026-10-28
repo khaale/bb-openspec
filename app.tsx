@@ -29,6 +29,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { rpcContract } from "./src/contract";
+import type { PlanningSource } from "./src/planning-source";
 import {
   ACTION,
   ACTION_LABEL,
@@ -144,12 +145,14 @@ function ProgressRing({ done, total }: { done: number; total: number }) {
 function LaunchDialog({
   rpc,
   source,
+  planningSource,
   change,
   onClose,
   onLaunched,
 }: {
   rpc: Rpc;
   source: Workspace;
+  planningSource: PlanningSource;
   change: Change;
   onClose: () => void;
   onLaunched: (id: string) => void;
@@ -157,7 +160,9 @@ function LaunchDialog({
   const [action, setAction] = useState<Action>(
     change.total ? ACTION.APPLY : ACTION.EXPLORE,
   );
-  const [prompt, setPrompt] = useState(() => initialPrompt(action, change.id));
+  const [prompt, setPrompt] = useState(() =>
+    initialPrompt(action, change.id, planningSource.rootPath),
+  );
   const [execution, setExecution] =
     useState<ExperimentalProviderModelPickerValue | null>(null);
   const [permissionMode, setPermissionMode] = useState<
@@ -186,6 +191,7 @@ function LaunchDialog({
       const result = await rpc.call("launch", {
         environmentId: source.id,
         changeId: change.id,
+        storeId: planningSource.storeId,
         action,
         prompt,
         execution:
@@ -229,7 +235,9 @@ function LaunchDialog({
               aria-pressed={action === value}
               onClick={() => {
                 setAction(value);
-                setPrompt(initialPrompt(value, change.id));
+                setPrompt(
+                  initialPrompt(value, change.id, planningSource.rootPath),
+                );
               }}
             >
               {ACTION_LABEL[value]}
@@ -248,6 +256,11 @@ function LaunchDialog({
         <div className="os-launch-context">
           <span>{source.name}</span>
           <span className="os-mono">{source.path}</span>
+          {planningSource.storeId && (
+            <span className="os-mono">
+              Store {planningSource.storeId}: {planningSource.rootPath}
+            </span>
+          )}
         </div>
         <div className="os-agent-settings">
           <Button
@@ -315,12 +328,14 @@ function LaunchDialog({
 function AttachDialog({
   rpc,
   source,
+  planningSource,
   change,
   onClose,
   onAttached,
 }: {
   rpc: Rpc;
   source: Workspace;
+  planningSource: PlanningSource;
   change: Change;
   onClose: () => void;
   onAttached: () => void;
@@ -333,9 +348,12 @@ function AttachDialog({
     [rpc, source.id],
   );
   const choices = useQuery(load);
-  const previousChange = choices.data?.find(
-    (thread) => thread.id === threadId,
-  )?.changeId;
+  const previousChoice = choices.data?.find((thread) => thread.id === threadId);
+  const previousChange = previousChoice?.changeId;
+  const replacing =
+    !!previousChange &&
+    (previousChange !== change.id ||
+      previousChoice?.storeId !== planningSource.storeId);
   async function attach() {
     if (pending || !threadId) return;
     setPending(true);
@@ -344,6 +362,7 @@ function AttachDialog({
       await rpc.call("attach", {
         environmentId: source.id,
         changeId: change.id,
+        storeId: planningSource.storeId,
         threadId,
       });
       onAttached();
@@ -381,17 +400,20 @@ function AttachDialog({
               {choices.data.map((thread) => (
                 <option key={thread.id} value={thread.id}>
                   {thread.title} · {thread.providerId} · {thread.id.slice(-6)}
-                  {thread.changeId ? ` → ${thread.changeId}` : ""}
+                  {thread.changeId
+                    ? ` → ${thread.storeId ? `${thread.storeId}/` : ""}${thread.changeId}`
+                    : ""}
                 </option>
               ))}
             </select>
           ) : (
             <Message>В этом окружении пока нет тредов.</Message>
           ))}
-        {previousChange && previousChange !== change.id && (
+        {replacing && (
           <p className="os-link-notice">
-            Текущая связь: {previousChange}. Подтверждение заменит её на{" "}
-            {change.id}.
+            Текущая связь:{" "}
+            {previousChoice?.storeId ? `${previousChoice.storeId}/` : ""}
+            {previousChange}. Подтверждение заменит её на {change.id}.
           </p>
         )}
         {error && <Message error>{error}</Message>}
@@ -400,11 +422,7 @@ function AttachDialog({
             Отмена
           </Button>
           <Button disabled={pending || !threadId} onClick={() => void attach()}>
-            {pending
-              ? "Привязка…"
-              : previousChange && previousChange !== change.id
-                ? "Перепривязать"
-                : "Привязать"}
+            {pending ? "Привязка…" : replacing ? "Перепривязать" : "Привязать"}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -452,11 +470,13 @@ function ThreadIndicator({ threads }: { threads: LinkedThread[] }) {
 function ChangeDetail({
   rpc,
   source,
+  planningSource,
   change,
   onRefresh,
 }: {
   rpc: Rpc;
   source: Workspace;
+  planningSource: PlanningSource;
   change: Change;
   onRefresh: () => void;
 }) {
@@ -468,7 +488,11 @@ function ChangeDetail({
     useRpcQuery({
       contract: rpcContract,
       method: "detail",
-      input: { environmentId: source.id, changeId: change.id },
+      input: {
+        environmentId: source.id,
+        changeId: change.id,
+        storeId: planningSource.storeId,
+      },
     }),
   );
   const documentQuery = liveQueryView(
@@ -478,6 +502,7 @@ function ChangeDetail({
       input: {
         environmentId: source.id,
         changeId: change.id,
+        storeId: planningSource.storeId,
         path: documentPath ?? "",
       },
       enabled: !!documentPath,
@@ -621,12 +646,14 @@ function ChangeDetail({
             <Button
               variant="ghost"
               size="sm"
+              disabled={!documentQuery.data}
               onClick={() =>
+                documentQuery.data &&
                 navigate.experimental_openFilePreview({
                   target: {
-                    kind: "workspace",
-                    environmentId: source.id,
-                    path: `openspec/${documentPath}`,
+                    kind: "host",
+                    hostId: source.hostId,
+                    path: documentQuery.data.absolutePath,
                   },
                   location: null,
                 })
@@ -729,6 +756,7 @@ function ChangeDetail({
         <LaunchDialog
           rpc={rpc}
           source={source}
+          planningSource={planningSource}
           change={change}
           onClose={() => setDialog(undefined)}
           onLaunched={(id) => {
@@ -742,6 +770,7 @@ function ChangeDetail({
         <AttachDialog
           rpc={rpc}
           source={source}
+          planningSource={planningSource}
           change={change}
           onClose={() => setDialog(undefined)}
           onAttached={() => {
@@ -770,6 +799,7 @@ function OpenSpecPage({
   const [projectId, setProjectId] = useState<string>();
   const [environmentId, setEnvironmentId] = useState<string>();
   const [changeId, setChangeId] = useState<string>();
+  const [storeId, setStoreId] = useState<string | null>();
   const [archived, setArchived] = useState(false);
   const [query, setQuery] = useState("");
   const [editingSource, setEditingSource] = useState(false);
@@ -804,9 +834,14 @@ function OpenSpecPage({
   useEffect(() => {
     if (threadId) {
       setChangeId(undefined);
+      setStoreId(undefined);
       setArchived(false);
     }
-  }, [threadId, sources.data?.preferredChangeId]);
+  }, [
+    threadId,
+    sources.data?.preferredChangeId,
+    sources.data?.preferredStoreId,
+  ]);
   const source =
     sources.data?.environments.find(
       (environment) => environment.id === environmentId,
@@ -815,11 +850,27 @@ function OpenSpecPage({
       (environment) => environment.id === sources.data?.preferredEnvironmentId,
     ) ??
     sources.data?.environments[0];
+  const selectedStoreId =
+    storeId !== undefined
+      ? storeId
+      : threadId && sources.data?.preferredChangeId
+        ? sources.data.preferredStoreId
+        : undefined;
+  const sourceSelection =
+    selectedStoreId !== undefined ? { storeId: selectedStoreId } : {};
+  const planningSources = liveQueryView(
+    useRpcQuery({
+      contract: rpcContract,
+      method: "planningSources",
+      input: { environmentId: source?.id ?? "" },
+      enabled: !!source,
+    }),
+  );
   const changes = liveQueryView(
     useRpcQuery({
       contract: rpcContract,
       method: "changes",
-      input: { environmentId: source?.id ?? "" },
+      input: { environmentId: source?.id ?? "", ...sourceSelection },
       enabled: !!source,
     }),
   );
@@ -828,9 +879,9 @@ function OpenSpecPage({
     if (!source) return;
     setRefreshError(undefined);
     void rpc
-      .call("refresh", { environmentId: source.id })
+      .call("refresh", { environmentId: source.id, ...sourceSelection })
       .then(changes.refresh, (cause) => setRefreshError(errorMessage(cause)));
-  }, [rpc, source?.id, changes.refresh]);
+  }, [rpc, source?.id, selectedStoreId, changes.refresh]);
   const preferredId =
     changeId ?? (routeChange || sources.data?.preferredChangeId);
   const effectiveArchived =
@@ -865,7 +916,10 @@ function OpenSpecPage({
   const projectName =
     sources.data?.projects.find((project) => project.id === selectedProjectId)
       ?.name ?? "Выбрать проект";
-  const sourceLabel = source ? `${projectName} · ${source.name}` : projectName;
+  const displayedStoreId = changes.data?.source.storeId ?? selectedStoreId;
+  const sourceLabel = source
+    ? `${projectName} · ${source.name}${displayedStoreId ? ` · store: ${displayedStoreId}` : ""}`
+    : projectName;
   return (
     <TooltipProvider delayDuration={350}>
       <div className="os-root">
@@ -887,8 +941,12 @@ function OpenSpecPage({
               onClick={() => setEditingSource((value) => !value)}
             >
               <span className="os-source-name">{projectName}</span>
-              {source && (
-                <span className="os-source-environment">· {source.name}</span>
+              {displayedStoreId ? (
+                <span className="os-source-store">· {displayedStoreId}</span>
+              ) : (
+                source && (
+                  <span className="os-source-environment">· {source.name}</span>
+                )
               )}
               <svg
                 width="12"
@@ -955,6 +1013,7 @@ function OpenSpecPage({
                 disabled={!!threadId}
                 onChange={(event) => {
                   setProjectId(event.target.value);
+                  setStoreId(undefined);
                   setEnvironmentId(undefined);
                   setChangeId(undefined);
                   setArchived(false);
@@ -973,7 +1032,7 @@ function OpenSpecPage({
                 disabled={!!threadId || !sources.data?.environments.length}
                 onChange={(event) => {
                   setEnvironmentId(event.target.value);
-                  setEditingSource(false);
+                  setStoreId(undefined);
                   setChangeId(undefined);
                   setArchived(false);
                 }}
@@ -987,6 +1046,53 @@ function OpenSpecPage({
                   </option>
                 ))}
               </select>
+              <select
+                className="os-planning-picker"
+                aria-label="Источник OpenSpec"
+                value={
+                  selectedStoreId === undefined
+                    ? "auto"
+                    : selectedStoreId === null
+                      ? "local"
+                      : `store:${selectedStoreId}`
+                }
+                onChange={(event) => {
+                  const value = event.target.value;
+                  setStoreId(
+                    value === "auto"
+                      ? undefined
+                      : value === "local"
+                        ? null
+                        : value.slice(6),
+                  );
+                  setChangeId("");
+                  setArchived(false);
+                  setCompactDetail(false);
+                  setEditingSource(false);
+                }}
+              >
+                <option value="auto">OpenSpec · Автоматически</option>
+                <option value="local">OpenSpec · Локальный</option>
+                {selectedStoreId &&
+                  !planningSources.data?.stores.some(
+                    (store) => store.id === selectedStoreId,
+                  ) && (
+                    <option value={`store:${selectedStoreId}`}>
+                      Store · {selectedStoreId}
+                    </option>
+                  )}
+                {planningSources.data?.stores.map((store) => (
+                  <option key={store.id} value={`store:${store.id}`}>
+                    Store · {store.id}
+                  </option>
+                ))}
+              </select>
+              {planningSources.data?.warning && (
+                <Message>{planningSources.data.warning}</Message>
+              )}
+              {planningSources.error && (
+                <Message error>{planningSources.error}</Message>
+              )}
             </div>
           )}
         </header>
@@ -1115,11 +1221,17 @@ function OpenSpecPage({
               {!changes.data && !changes.error && (
                 <Message>Загрузка изменений…</Message>
               )}
-              {selected && (!compact || compactDetail) && (
+              {selected && changes.data && (!compact || compactDetail) && (
                 <ChangeDetail
-                  key={`${source.id}/${selected.id}`}
+                  key={JSON.stringify([
+                    source.id,
+                    changes.data.source.storeId,
+                    changes.data.source.rootPath,
+                    selected.id,
+                  ])}
                   rpc={rpc}
                   source={source}
+                  planningSource={changes.data.source}
                   change={selected}
                   onRefresh={refreshFiles}
                 />

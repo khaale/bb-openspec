@@ -5,6 +5,7 @@ import { changeForPath } from "./change-paths";
 import { liveTags } from "./live-tags";
 import { workspace } from "./reader";
 import { errorMessage } from "./reader-error";
+import { sourceSelectionSchema } from "./planning-source";
 
 export function createHostClient(bb: BbPluginApi) {
   return bb.hosts.experimental_client({
@@ -22,8 +23,14 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
       environmentId: string;
       workspacePath: string;
       hostId: string;
+      storeId?: string | null;
     }
   >();
+  const failureKey = (environmentId: string, storeId?: string | null) =>
+    JSON.stringify([
+      environmentId,
+      storeId === undefined ? { auto: true } : storeId,
+    ]);
   const knownHosts = new Set<string>();
   const failures = new Map<string, string>();
   const disposers: (() => void)[] = [];
@@ -52,12 +59,16 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
           subscriptionId: entry.subscriptionId,
           environmentId: entry.environmentId,
           workspacePath: entry.workspacePath,
+          ...(entry.storeId !== undefined ? { storeId: entry.storeId } : {}),
         },
         { hostId: entry.hostId },
       );
-      failures.delete(entry.environmentId);
+      failures.delete(failureKey(entry.environmentId, entry.storeId));
     } catch (cause) {
-      failures.set(entry.environmentId, errorMessage(cause));
+      failures.set(
+        failureKey(entry.environmentId, entry.storeId),
+        errorMessage(cause),
+      );
     }
     bb.rpc.experimental_invalidate([liveTags.changes(entry.environmentId)]);
   }
@@ -67,7 +78,7 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
     // Reload can restore reads before activation; services start after activation.
     await ready;
     if (signal.aborted) return;
-    const { environmentId } = rpcInput(read.input);
+    const { environmentId, storeId } = rpcInput(read.input);
     const source = await workspace(bb.sdk, environmentId);
     if (signal.aborted) return;
     const entry = {
@@ -75,6 +86,7 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
       environmentId,
       workspacePath: source.path,
       hostId: source.hostId,
+      ...(storeId !== undefined ? { storeId } : {}),
     };
     knownHosts.add(source.hostId);
     active.set(entry.subscriptionId, entry);
@@ -88,10 +100,11 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
       active.delete(entry.subscriptionId);
       if (
         ![...active.values()].some(
-          (item) => item.environmentId === environmentId,
+          (item) =>
+            item.environmentId === environmentId && item.storeId === storeId,
         )
       )
-        failures.delete(environmentId);
+        failures.delete(failureKey(environmentId, storeId));
       try {
         await host.call(
           "unwatch",
@@ -127,8 +140,8 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
       for (const file of payload.paths) {
         tags.add(liveTags.document(payload.environmentId, file));
         const changeId = changeForPath(file);
+        if (changeId) tags.add(liveTags.changes(payload.environmentId));
         if (changeId && file === `changes/${changeId}/tasks.md`) {
-          tags.add(liveTags.changes(payload.environmentId));
           tags.add(liveTags.detail(payload.environmentId, changeId));
         }
       }
@@ -146,19 +159,24 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
         "reconcile",
         {
           subscriptions: entries.map(
-            ({ subscriptionId, environmentId, workspacePath }) => ({
+            ({ subscriptionId, environmentId, workspacePath, storeId }) => ({
               subscriptionId,
               environmentId,
               workspacePath,
+              ...(storeId !== undefined ? { storeId } : {}),
             }),
           ),
         },
         { hostId },
       );
-      for (const entry of entries) failures.delete(entry.environmentId);
+      for (const entry of entries)
+        failures.delete(failureKey(entry.environmentId, entry.storeId));
     } catch (cause) {
       for (const entry of entries)
-        failures.set(entry.environmentId, errorMessage(cause));
+        failures.set(
+          failureKey(entry.environmentId, entry.storeId),
+          errorMessage(cause),
+        );
     }
     if (!entries.length) knownHosts.delete(hostId);
     for (const entry of entries)
@@ -200,7 +218,8 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
     for (const dispose of disposers) dispose();
   });
   return {
-    error: (environmentId: string) => failures.get(environmentId) ?? null,
+    error: (environmentId: string, storeId?: string | null) =>
+      failures.get(failureKey(environmentId, storeId)) ?? null,
     refresh: async (environmentId: string) => {
       await Promise.all(
         [...active.values()]
@@ -211,7 +230,10 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
   };
 }
 
-function rpcInput(input: unknown): { environmentId: string } {
+function rpcInput(input: unknown): {
+  environmentId: string;
+  storeId?: string | null;
+} {
   if (
     typeof input !== "object" ||
     input === null ||
@@ -219,5 +241,8 @@ function rpcInput(input: unknown): { environmentId: string } {
     typeof input.environmentId !== "string"
   )
     throw new Error("Требуется окружение наблюдения.");
-  return { environmentId: input.environmentId };
+  return {
+    environmentId: input.environmentId,
+    ...sourceSelectionSchema.parse(input),
+  };
 }

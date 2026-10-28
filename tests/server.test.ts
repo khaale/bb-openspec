@@ -21,11 +21,25 @@ function setup() {
     "changes/draft/proposal.md": "Draft",
     "changes/archive/2026-10-01-old/tasks.md": "- [x] Done",
   };
-  const state = { missing: false, failure: "" };
+  const state = { missing: false, failure: "", storeRoot: "/stores/team" };
   const { bb, harness } = createFakePluginHost({
     pluginId: "openspec",
     experimental_callHostRpc: async ({ method, input }) => {
       if (state.failure) throw new Error(state.failure);
+      if (method === "resolve") {
+        const selection = input as {
+          workspacePath: string;
+          storeId?: string | null;
+        };
+        return {
+          storeId: selection.storeId ?? null,
+          rootPath: selection.storeId
+            ? state.storeRoot
+            : selection.workspacePath,
+        };
+      }
+      if (method === "catalog")
+        return { stores: [{ id: "team" }], warning: null };
       const paths = Object.keys(documents);
       const ids = [
         ...new Set(
@@ -39,6 +53,7 @@ function setup() {
         artifacts: artifactsFor(paths, id),
         ...progress(parseTasks(documents[`changes/${id}/tasks.md`] ?? "")),
         error: null,
+        updatedAt: 0,
       }));
       if (method === "snapshot")
         return {
@@ -81,7 +96,11 @@ function setup() {
     "files.read",
     async (input: { path: string; hostId: string; rootPath: string }) => {
       assert.equal(input.hostId, "host-1");
-      assert.equal(input.rootPath, "/project/openspec");
+      assert.ok(
+        ["/project/openspec", `${state.storeRoot}/openspec`].includes(
+          input.rootPath,
+        ),
+      );
       const relative = path.relative(input.rootPath, input.path);
       assert.ok(!relative.startsWith(".."));
       if (!(relative in documents)) throw new Error("ENOENT");
@@ -187,7 +206,7 @@ test("launch reuses the selected environment, settings and edited prompt", async
     assert.equal(spawn.permissionMode, execution.permissionMode);
     assert.match(String(spawn.prompt), /Edited brief/);
     assert.match(String(spawn.prompt), /changes\/example/);
-    assert.deepEqual(spawn.pluginMetadata, target);
+    assert.deepEqual(spawn.pluginMetadata, { ...target, storeId: null });
     assert.equal(spawn.visibility, "visible");
   } finally {
     await harness.lifecycle.dispose();
@@ -270,7 +289,12 @@ test("missing OpenSpec is distinct from an unavailable host", async () => {
     state.missing = true;
     assert.deepEqual(
       await harness.behavior.callRpc("changes", { environmentId: "env-1" }),
-      { changes: [], missing: true, watchError: null },
+      {
+        changes: [],
+        missing: true,
+        watchError: null,
+        source: { storeId: null, rootPath: "/project" },
+      },
     );
     state.failure = "Machine offline";
     await assert.rejects(
@@ -364,6 +388,113 @@ test("reattachment persists across reads and invalidates both cards and thread c
       "openspec:threads:env-1",
       "openspec:changes:env-1",
     ]);
+  } finally {
+    await harness.lifecycle.dispose();
+  }
+});
+
+test("store bindings are isolated from an identical local change and launches keep the code environment", async () => {
+  const { harness, state } = setup();
+  const local = makeThreadResponse({
+    id: "local-thread",
+    environmentId: "env-1",
+    projectId: "project-1",
+  });
+  const stored = makeThreadResponse({
+    id: "store-thread",
+    environmentId: "env-1",
+    projectId: "project-1",
+  });
+  let metadata: {
+    environmentId: string;
+    changeId: string;
+    storeId?: string | null;
+  } = { ...target, storeId: "team" };
+  harness.sdk.stub("threads.list", async () => [local, stored]);
+  harness.sdk.stub("threads.get", async () => stored);
+  harness.sdk.stub("projects.list", async () => []);
+  harness.sdk.stub("environments.list", async () => []);
+  harness.sdk.stub("threads.getPluginMetadata", async () => metadata);
+  harness.sdk.stub("threads.experimental_listPluginMetadata", async () => ({
+    threads: [
+      { threadId: "local-thread", metadata: target },
+      { threadId: "store-thread", metadata },
+    ],
+  }));
+  harness.sdk.stub(
+    "threads.updatePluginMetadata",
+    async (input: { set: typeof metadata }) => {
+      metadata = input.set;
+      return metadata;
+    },
+  );
+  try {
+    const read = async (storeId: string | null) =>
+      rpcContract.changes.output.parse(
+        await harness.behavior.callRpc("changes", {
+          environmentId: "env-1",
+          storeId,
+        }),
+      );
+    assert.deepEqual(
+      (await read(null)).changes
+        .find((c) => c.id === "example")
+        ?.threads.map((t) => t.id),
+      ["local-thread"],
+    );
+    assert.deepEqual(
+      (await read("team")).changes
+        .find((c) => c.id === "example")
+        ?.threads.map((t) => t.id),
+      ["store-thread"],
+    );
+    const sources = rpcContract.sources.output.parse(
+      await harness.behavior.callRpc("sources", { threadId: "store-thread" }),
+    );
+    assert.equal(sources.preferredStoreId, "team");
+    const doc = rpcContract.document.output.parse(
+      await harness.behavior.callRpc("document", {
+        ...target,
+        storeId: "team",
+        path: "changes/example/proposal.md",
+      }),
+    );
+    assert.equal(
+      doc.absolutePath,
+      `${state.storeRoot}/openspec/changes/example/proposal.md`,
+    );
+    await harness.behavior.callRpc("launch", {
+      ...target,
+      storeId: "team",
+      action: ACTION.APPLY,
+      prompt: "Implement shared change",
+      execution: null,
+    });
+    const [spawn] = harness.inspection.sdk.callsTo("threads.spawn")[0] as [
+      Record<string, unknown>,
+    ];
+    assert.deepEqual(spawn.environment, {
+      type: "reuse",
+      environmentId: "env-1",
+    });
+    assert.deepEqual(spawn.pluginMetadata, { ...target, storeId: "team" });
+    assert.match(String(spawn.prompt), /--store "team"/);
+    assert.ok(
+      String(spawn.prompt).includes(
+        `${state.storeRoot}/openspec/changes/example`,
+      ),
+    );
+    await harness.behavior.callRpc("attach", {
+      ...target,
+      storeId: null,
+      threadId: "store-thread",
+    });
+    assert.equal(metadata.storeId, null);
+    assert.equal(
+      (await read("team")).changes.find((c) => c.id === "example")?.threads
+        .length,
+      0,
+    );
   } finally {
     await harness.lifecycle.dispose();
   }

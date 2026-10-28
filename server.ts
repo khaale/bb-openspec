@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import { rpcContract } from "./src/contract";
@@ -6,26 +7,47 @@ import { changeRelative } from "./src/change-paths";
 import { readDocument, workspace } from "./src/reader";
 import { createHostClient, registerLiveUpdates } from "./src/live-updates";
 import { liveTags } from "./src/live-tags";
+import { storeIdSchema } from "./src/planning-source";
+import { compareChanges } from "./src/change-order";
 
 const bindingSchema = z.object({
   environmentId: z.string(),
   changeId: z.string(),
+  storeId: storeIdSchema.nullable().default(null),
 });
 
 export default function plugin(bb: BbPluginApi) {
   const sdk = bb.sdk;
   const host = createHostClient(bb);
 
-  async function target(environmentId: string, changeId: string) {
-    changeRelative(changeId);
+  async function planning(environmentId: string, storeId?: string | null) {
     const source = await workspace(sdk, environmentId);
+    const selected = await host.call(
+      "resolve",
+      {
+        workspacePath: source.path,
+        ...(storeId !== undefined ? { storeId } : {}),
+      },
+      { hostId: source.hostId },
+    );
+    return { source, selected };
+  }
+
+  async function target(
+    environmentId: string,
+    changeId: string,
+    storeId?: string | null,
+  ) {
+    changeRelative(changeId);
+    const { source, selected } = await planning(environmentId, storeId);
     const result = await host.call(
       "change",
-      { workspacePath: source.path, changeId },
+      { workspacePath: selected.rootPath, storeId: null, changeId },
       { hostId: source.hostId },
     );
     return {
       source,
+      selected,
       artifacts: result.change.artifacts,
       groups: result.groups,
     };
@@ -58,6 +80,7 @@ export default function plugin(bb: BbPluginApi) {
       );
       return {
         ...thread,
+        storeId: binding.success ? binding.data.storeId : null,
         changeId:
           binding.success && binding.data.environmentId === environmentId
             ? binding.data.changeId
@@ -66,9 +89,13 @@ export default function plugin(bb: BbPluginApi) {
     });
   }
 
-  async function linkedThreads(environmentId: string, changeId: string) {
+  async function linkedThreads(
+    environmentId: string,
+    changeId: string,
+    storeId: string | null,
+  ) {
     return (await boundThreads(environmentId)).filter(
-      (thread) => thread.changeId === changeId,
+      (thread) => thread.changeId === changeId && thread.storeId === storeId,
     );
   }
 
@@ -77,6 +104,7 @@ export default function plugin(bb: BbPluginApi) {
       const projects = await sdk.projects.list();
       let preferredEnvironmentId: string | null = null;
       let preferredChangeId: string | null = null;
+      let preferredStoreId: string | null = null;
       if (environmentId) {
         const source = await workspace(sdk, environmentId);
         projectId = source.projectId;
@@ -92,8 +120,10 @@ export default function plugin(bb: BbPluginApi) {
         if (
           binding.success &&
           binding.data.environmentId === thread.environmentId
-        )
+        ) {
           preferredChangeId = binding.data.changeId;
+          preferredStoreId = binding.data.storeId;
+        }
       }
       const selectedProject = projectId ?? projects[0]?.id;
       const environments = selectedProject
@@ -123,45 +153,87 @@ export default function plugin(bb: BbPluginApi) {
           })),
         preferredEnvironmentId,
         preferredChangeId,
+        preferredStoreId,
       };
     },
-    changes: async ({ environmentId }) => {
+    planningSources: async ({ environmentId }) => {
       const source = await workspace(sdk, environmentId);
+      return host.call(
+        "catalog",
+        { workspacePath: source.path },
+        { hostId: source.hostId },
+      );
+    },
+    changes: async ({ environmentId, storeId }) => {
+      const { source, selected } = await planning(environmentId, storeId);
       const result = await host.call(
         "snapshot",
-        { workspacePath: source.path },
+        { workspacePath: selected.rootPath, storeId: null },
         { hostId: source.hostId },
       );
       const threads = await boundThreads(environmentId);
       return {
         ...result,
-        changes: result.changes.map((change) => ({
-          ...change,
-          threads: threads.filter((thread) => thread.changeId === change.id),
-        })),
-        watchError: live.error(environmentId) ?? result.watchError,
+        source: selected,
+        changes: result.changes
+          .map((change) => ({
+            ...change,
+            threads: threads.filter(
+              (thread) =>
+                thread.changeId === change.id &&
+                thread.storeId === selected.storeId,
+            ),
+          }))
+          .sort(compareChanges),
+        watchError: live.error(environmentId, storeId) ?? result.watchError,
       };
     },
-    refresh: async ({ environmentId }) => {
-      await live.refresh(environmentId);
+    refresh: async ({ environmentId, storeId }) => {
       const source = await workspace(sdk, environmentId);
       await host.call(
         "refresh",
-        { workspacePath: source.path },
+        {
+          workspacePath: source.path,
+          ...(storeId !== undefined ? { storeId } : {}),
+        },
         { hostId: source.hostId },
       );
+      await live.refresh(environmentId);
       bb.rpc.experimental_invalidate([liveTags.environment(environmentId)]);
       return null;
     },
-    detail: async ({ environmentId, changeId }) => {
-      const { groups } = await target(environmentId, changeId);
-      return { groups, threads: await linkedThreads(environmentId, changeId) };
+    detail: async ({ environmentId, changeId, storeId }) => {
+      const { groups, selected } = await target(
+        environmentId,
+        changeId,
+        storeId,
+      );
+      return {
+        groups,
+        threads: await linkedThreads(environmentId, changeId, selected.storeId),
+      };
     },
-    document: async ({ environmentId, changeId, path: documentPath }) => {
-      const { source, artifacts } = await target(environmentId, changeId);
+    document: async ({
+      environmentId,
+      changeId,
+      storeId,
+      path: documentPath,
+    }) => {
+      const { source, selected, artifacts } = await target(
+        environmentId,
+        changeId,
+        storeId,
+      );
       if (!artifacts.some((artifact) => artifact.paths.includes(documentPath)))
         throw new Error("Артефакт не найден в выбранном изменении.");
-      return { content: await readDocument(sdk, source, documentPath) };
+      return {
+        content: await readDocument(
+          sdk,
+          { ...source, path: selected.rootPath },
+          documentPath,
+        ),
+        absolutePath: path.join(selected.rootPath, "openspec", documentPath),
+      };
     },
     launchDefaults: async ({ environmentId }) => {
       const source = await workspace(sdk, environmentId);
@@ -169,22 +241,33 @@ export default function plugin(bb: BbPluginApi) {
         projectId: source.projectId,
       });
     },
-    launch: async ({ environmentId, changeId, action, prompt, execution }) => {
-      const { source, groups } = await target(environmentId, changeId);
+    launch: async ({
+      environmentId,
+      changeId,
+      storeId,
+      action,
+      prompt,
+      execution,
+    }) => {
+      const { source, selected, groups } = await target(
+        environmentId,
+        changeId,
+        storeId,
+      );
       if (changeId.startsWith("archive/"))
         throw new Error("Архивное изменение доступно только для просмотра.");
       if (action === ACTION.APPLY) {
         if (!groups.length)
           throw new Error("Для реализации требуется tasks.md с задачами.");
       }
-      const context = `Контекст OpenSpec: ${JSON.stringify({ changeId, path: `openspec/${changeRelative(changeId)}/` })}`;
+      const context = `Контекст OpenSpec: ${JSON.stringify({ changeId, storeId: selected.storeId, planningRoot: selected.rootPath, changePath: path.join(selected.rootPath, "openspec", changeRelative(changeId)), executionPath: source.path })}.\n${selected.storeId ? `Для команд workflow OpenSpec используй --store ${JSON.stringify(selected.storeId)}. References — только read-only контекст. Не создавай локальную копию change.` : "Используй указанный локальный planningRoot."}\nReferences из конфигурации OpenSpec — read-only upstream контекст; получай их через стандартные instructions workflow CLI.`;
       const thread = await sdk.threads.spawn({
         projectId: source.projectId,
         environment: { type: "reuse", environmentId },
         title: `${ACTION_LABEL[action]} · ${changeId}`,
         prompt: `${context}\n\n${prompt}`,
         ...(execution ?? {}),
-        pluginMetadata: { environmentId, changeId },
+        pluginMetadata: { environmentId, changeId, storeId: selected.storeId },
         visibility: "visible",
       });
       bb.rpc.experimental_invalidate([
@@ -194,8 +277,8 @@ export default function plugin(bb: BbPluginApi) {
       return { threadId: thread.id };
     },
     threadChoices: ({ environmentId }) => boundThreads(environmentId),
-    attach: async ({ environmentId, changeId, threadId }) => {
-      await target(environmentId, changeId);
+    attach: async ({ environmentId, changeId, storeId, threadId }) => {
+      const { selected } = await target(environmentId, changeId, storeId);
       if (changeId.startsWith("archive/"))
         throw new Error("Архивное изменение доступно только для просмотра.");
       const thread = await sdk.threads.get({ threadId });
@@ -204,7 +287,7 @@ export default function plugin(bb: BbPluginApi) {
       if (thread.deletedAt !== null) throw new Error("Тред удалён.");
       await sdk.threads.updatePluginMetadata({
         threadId,
-        set: { environmentId, changeId },
+        set: { environmentId, changeId, storeId: selected.storeId },
       });
       bb.rpc.experimental_invalidate([
         liveTags.threads(environmentId),
@@ -232,7 +315,7 @@ export default function plugin(bb: BbPluginApi) {
     return {
       tools: [],
       skills: [],
-      instructions: `Связанное изменение OpenSpec (данные): ${JSON.stringify(binding.data.changeId)}. Артефакты находятся в openspec/changes/ этого окружения. Ведите статусы задач в tasks.md; после работы сообщайте результаты проверок.`,
+      instructions: `Связанное изменение OpenSpec (данные): ${JSON.stringify(binding.data.changeId)}. ${binding.data.storeId ? `Источник планирования — store ${JSON.stringify(binding.data.storeId)}. Выполни openspec context --store ${JSON.stringify(binding.data.storeId)} --json, чтобы определить его корень; для всех команд workflow передавай тот же --store. Артефакты находятся в openspec/changes/ корня store, а не кодового checkout. Не создавай локальный дубликат. References — read-only контекст.` : "Артефакты находятся в openspec/changes/ этого окружения."} References из конфигурации OpenSpec доступны через стандартные workflow instructions CLI и остаются read-only. Ведите статусы задач в tasks.md; после работы сообщайте результаты проверок.`,
     };
   });
 }

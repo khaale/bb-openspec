@@ -789,3 +789,21 @@
 .os-change-meta .os-thread-indicator {
   margin-top: 0;
 }
+
+.os-source-store {
+  color: var(--os-accent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+.os-source-summary:has(.os-source-store) .os-source-name {
+  flex-shrink: 1;
+  max-width: 45%;
+}
+.os-source-pickers .os-planning-picker {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+.os-source-pickers .os-message {
+  grid-column: 1 / -1;
+}

@@ -8,9 +8,11 @@
 - Просмотр Proposal, Specs, Design и Tasks в Markdown, открытие исходных файлов в bb.
 - Чеклист только для чтения: статусы `✓` / `○` и прогресс вычисляются из `tasks.md`, файлы обновляет агент.
 - Компактный список карточек или список с деталями. Карточки показывают выполнение задач и состояние связанных тредов; работающий агент отмечается медленным spinner.
-- Свёрнутый выбор проекта/окружения, подсказки у иконок и адаптация к узким панелям.
+- Свёрнутый выбор проекта, окружения и источника, подсказки у иконок и адаптация к узким панелям.
 - Запуск нового треда для проработки, реализации или проверки change с редактируемым первым сообщением и стандартными настройками провайдера, модели и разрешений bb.
 - Ручная или программная привязка существующего треда. Панель OpenSpec также доступна внутри треда.
+- Локальные источники и зарегистрированные OpenSpec stores (beta), включая store-only и store-optional проекты.
+- Сначала changes с работающим агентом, затем свежие по времени изменения артефактов.
 - Обновление по native watcher на машине проекта и событиям bb, без периодического перечитывания файлов.
 
 ## Скриншоты
@@ -29,7 +31,7 @@
 - Node.js и npm для установки зависимостей и сборки.
 - Готовое окружение bb с обычным каталогом `openspec/`.
 
-CLI OpenSpec для просмотра не нужен. Для ведения спецификаций и их проверки в процессе разработки используется установленный `openspec` CLI.
+Для обычных локальных changes CLI OpenSpec не нужен. Для stores и автоматического разрешения store-only/defaultStore нужен CLI с командами `context --json` и `store list --json`, доступный в PATH машины окружения (проверено с OpenSpec 1.10.0). Для ведения спецификаций и их проверки в процессе разработки используется установленный `openspec` CLI.
 
 ## Установка из исходников
 
@@ -51,6 +53,22 @@ bb plugin install .
 
 Агент-менеджер может использовать RPC `launch`, `attach`, `changes` и `threadChoices` через `bb plugin rpc call`. Форматы запросов и правила работы описаны в [инструкции плагина](skills/openspec-work/SKILL.md).
 
+## Stores (beta)
+
+В раскрытом выборе контекста доступен **Источник OpenSpec**:
+
+- **Автоматически** — разрешение корня по правилам OpenSpec: локальное планирование, `store:` в config или `defaultStore` машины.
+- **Локальный** — `openspec/` выбранного окружения независимо от store-настроек.
+- **Store · имя** — явный выбор зарегистрированного store, эквивалентный `--store имя`.
+
+Настройте store стандартными командами OpenSpec. Плагин читает регистрацию на машине выбранного окружения, не регистрирует stores и не выполняет clone/pull/push. [Документация OpenSpec stores](https://openspec.dev/docs/stores).
+
+Выбор store меняет источник артефактов и задач, сохраняя кодовое окружение запуска агента. Store виден в шапке, связи с тредами учитывают источник: одинаковые имена change в разных stores независимы. В prompt передаются полный planning path, code checkout и нужный `--store`. Доступ агента к внешнему каталогу определяется настройками разрешений bb.
+
+Разрешение корня кешируется в памяти. После изменения `store:`, `defaultStore` или регистрации нажмите обновление: плагин повторит discovery и переключит watcher. Изменения файлов уже выбранного store обновляются автоматически.
+
+References остаются read-only контекстом стандартных workflow OpenSpec CLI; отдельного каталога upstream specs или Worksets в интерфейсе пока нет. Старые привязки без store сохраняют локальный источник.
+
 ## Обновление данных
 
 Первая загрузка сканирует OpenSpec и читает файлы задач. При сохранении известного `tasks.md` индекс перечитывает только этот файл; структурные изменения обновляют список файлов. Содержимое документов загружается при открытии.
@@ -64,6 +82,7 @@ bb plugin install .
 ```sh
 npm run typecheck
 npm test
+npm run test:stores # интеграция с CLI в изолированных временных stores
 npm run build
 bb plugin dev
 ```
@@ -75,26 +94,28 @@ bb plugin dev
 | `app.tsx`, `style.css` | Интерфейс навигации и панели треда |
 | `server.ts`, `src/contract.ts` | RPC, привязки и запуск тредов |
 | `host.ts`, `src/file-index.ts`, `src/watch-pool.ts` | Индекс файлов и native watcher на машине проекта |
+| `src/source-resolver.ts` | Разрешение store через CLI и cache источников |
 | `src/live-updates.ts` | Live queries, invalidation и lifecycle |
 | `src/model.ts` | Разбор задач и общая модель |
 | `tests/` | Parser, RPC, индекс и lifecycle watchers |
 | `openspec/` | Спецификации и changes разработки плагина |
 | `docs/` | Исследования, макеты и результаты проверки |
 
-Разработка ведётся через OpenSpec. Текущие changes: [первая версия браузера](openspec/changes/add-openspec-task-browser/) и [watcher и обновление интерфейса](openspec/changes/watch-openspec-files/). Макеты в `docs/mockups/` отражают этап проектирования; актуальный интерфейс находится в исходниках.
+Разработка ведётся через OpenSpec. Текущие changes: [первая версия браузера](openspec/changes/add-openspec-task-browser/), [watcher и обновление интерфейса](openspec/changes/watch-openspec-files/) и [stores](openspec/changes/support-openspec-stores/). Макеты в `docs/mockups/` отражают этап проектирования; актуальный интерфейс находится в исходниках.
 
 Проверка спецификаций:
 
 ```sh
 openspec validate add-openspec-task-browser --strict --no-interactive
 openspec validate watch-openspec-files --strict --no-interactive
+openspec validate support-openspec-stores --strict --no-interactive
 ```
 
-[Результаты проверки версии 0.2.0](docs/research/watcher-verification.md). История изменений — в [CHANGELOG.md](CHANGELOG.md).
+[Проверка stores в версии 0.3.0](docs/research/stores-verification.md) и [watcher в 0.2.0](docs/research/watcher-verification.md). История изменений — в [CHANGELOG.md](CHANGELOG.md).
 
 ## Ограничения
 
-Поддерживается стандартная структура `openspec/changes/<change>/` и `openspec/changes/archive/<date>-<change>/` с `proposal.md`, `design.md`, `tasks.md` и `specs/**/spec.md`. Пользовательские схемы workflow и внешние OpenSpec stores не интерпретируются.
+Поддерживается стандартная структура `openspec/changes/<change>/` и `openspec/changes/archive/<date>-<change>/` с `proposal.md`, `design.md`, `tasks.md` и `specs/**/spec.md`. Пользовательские схемы workflow не интерпретируются; stores используют ту же стандартную файловую структуру.
 
 Плагин не редактирует checklist, не архивирует changes и не выполняет проверку спецификаций из интерфейса. Метка «Выполнено» означает, что отмечены все задачи в `tasks.md`; архивирование и результаты проверок учитываются отдельно.
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { sourceSelectionSchema } from "./planning-source";
 
 export const ACTION = {
   EXPLORE: "explore",
@@ -46,6 +47,7 @@ export const changeSchema = z.object({
   done: z.number(),
   total: z.number(),
   error: z.string().nullable(),
+  updatedAt: z.number(),
 });
 export type Change = z.infer<typeof changeSchema>;
 export const environmentSchema = z.object({
@@ -71,7 +73,7 @@ export const executionSchema = z.object({
   serviceTier: z.string().optional(),
   permissionMode: z.enum(["auto", "accept-edits", "full"]),
 });
-export const targetSchema = z.object({
+export const targetSchema = sourceSelectionSchema.extend({
   environmentId: z.string().min(1),
   changeId: z.string().min(1).max(250),
 });
@@ -130,8 +132,12 @@ export function changeTitle(id: string): string {
   return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
-export function initialPrompt(action: Action, changeId: string): string {
-  const folder = `openspec/changes/${changeId}/`;
+export function initialPrompt(
+  action: Action,
+  changeId: string,
+  planningRoot?: string,
+): string {
+  const folder = `${planningRoot ? `${planningRoot}/` : ""}openspec/changes/${changeId}/`;
   const instruction = {
     explore:
       "Уточни открытые вопросы и подготовь недостающие артефакты OpenSpec. К реализации пока не переходи.",

@@ -164,8 +164,10 @@ export class WatchPool {
     },
     context: Context,
   ) {
-    if (this.subscriptions.has(input.subscriptionId)) return;
     const key = path.resolve(input.workspacePath);
+    const previous = this.subscriptions.get(input.subscriptionId);
+    if (previous?.index.workspacePath === key) return;
+    if (previous) await this.unsubscribe(input.subscriptionId);
     let record = this.records.get(key);
     if (!record) {
       const index = new OpenSpecIndex(key);

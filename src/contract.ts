@@ -12,6 +12,15 @@ import {
 
 import { snapshotSchema } from "./host-contract";
 import { liveTags } from "./live-tags";
+import {
+  sourceSelectionSchema,
+  planningSourceSchema,
+  planningCatalogSchema,
+  storeIdSchema,
+} from "./planning-source";
+const environmentInput = sourceSelectionSchema.extend({
+  environmentId: z.string(),
+});
 
 export const rpcContract = defineRpcContract({
   sources: {
@@ -26,11 +35,18 @@ export const rpcContract = defineRpcContract({
       environments: z.array(environmentSchema),
       preferredEnvironmentId: z.string().nullable(),
       preferredChangeId: z.string().nullable(),
+      preferredStoreId: storeIdSchema.nullable(),
     }),
   },
+  planningSources: {
+    input: environmentInput,
+    output: planningCatalogSchema,
+    tags: (input) => [liveTags.environment(input.environmentId)],
+  },
   changes: {
-    input: z.object({ environmentId: z.string() }),
+    input: environmentInput,
     output: snapshotSchema.extend({
+      source: planningSourceSchema,
       changes: z.array(changeSchema.extend({ threads: z.array(threadSchema) })),
     }),
     tags: (input) => [
@@ -38,7 +54,7 @@ export const rpcContract = defineRpcContract({
       liveTags.changes(input.environmentId),
     ],
   },
-  refresh: { input: z.object({ environmentId: z.string() }), output: z.null() },
+  refresh: { input: environmentInput, output: z.null() },
   detail: {
     input: targetSchema,
     tags: (input) => [
@@ -53,7 +69,7 @@ export const rpcContract = defineRpcContract({
   },
   document: {
     input: targetSchema.extend({ path: z.string().max(1000) }),
-    output: z.object({ content: z.string() }),
+    output: z.object({ content: z.string(), absolutePath: z.string() }),
     tags: (input) => [
       liveTags.environment(input.environmentId),
       liveTags.document(input.environmentId, input.path),
@@ -73,7 +89,12 @@ export const rpcContract = defineRpcContract({
   },
   threadChoices: {
     input: z.object({ environmentId: z.string() }),
-    output: z.array(threadSchema.extend({ changeId: z.string().nullable() })),
+    output: z.array(
+      threadSchema.extend({
+        changeId: z.string().nullable(),
+        storeId: storeIdSchema.nullable(),
+      }),
+    ),
   },
   attach: {
     input: targetSchema.extend({ threadId: z.string() }),

@@ -6,7 +6,7 @@ description: Work on linked OpenSpec changes or assign changes to BB agent threa
 # Linked OpenSpec work
 
 Use this workflow when the thread is explicitly linked to an OpenSpec change.
-Read the change path in the thread's first message or linked context. Work in
+Read the change path and planning source in the thread's first message or linked context. Work in
 that thread's environment; do not substitute the project's other checkout.
 
 1. Read project instructions and the available proposal, specs, design and
@@ -42,3 +42,25 @@ changes cannot be assigned or launched. Assigning metadata alone does not direct
 an already running turn: when changing the assignment, explicitly communicate
 the new task through BB thread orchestration if authorized. Avoid assigning
 concurrent edits of the same files to several agents.
+
+## Store-backed changes
+
+The execution environment remains the code checkout. Planning files may live in
+an external registered store on the same host. Use the absolute planning root
+from the launch context. For an attached store thread, resolve it with
+`openspec context --store <id> --json`, then carry `--store <id>` through all
+OpenSpec workflow commands. Never create a local duplicate of a store change.
+References supplied by OpenSpec workflows are read-only upstream context.
+
+RPC target inputs accept `storeId`: a string selects that registered store,
+null explicitly selects the environment's local OpenSpec, and omission uses
+OpenSpec's automatic root resolution. `planningSources` lists registered stores
+for an environment. Changes return the resolved `source` (storeId/rootPath).
+Launch and attach persist that resolved storeId in thread metadata. A thread
+has one change/source binding, so reassigning to the same change id in a different
+store still replaces the previous assignment. Missing storeId in old bindings
+means local, preserving existing assignments.
+
+After changing machine registration or project/default store selection, use
+`refresh` with environmentId and the same storeId selection. This refreshes
+root discovery and active watcher paths; ordinary file events do not run CLI.

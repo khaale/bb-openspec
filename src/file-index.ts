@@ -40,6 +40,7 @@ export class OpenSpecIndex {
   private tasks = new Map<string, Tasks>();
   private summaries: Change[] = [];
   private missing = true;
+  private modifiedTimes = new Map<string, number>();
 
   constructor(
     readonly workspacePath: string,
@@ -152,6 +153,36 @@ export class OpenSpecIndex {
         }),
       );
     }
+    const nextModifiedTimes = new Map<string, number>();
+    const artifactFiles = [...nextFiles].filter(
+      (file) => changeForPath(file) !== null,
+    );
+    for (let offset = 0; offset < artifactFiles.length; offset += 8) {
+      await Promise.all(
+        artifactFiles.slice(offset, offset + 8).map(async (file) => {
+          const changed =
+            changes === null ||
+            changes.some(
+              (change) =>
+                file === change.path || file.startsWith(`${change.path}/`),
+            );
+          const cached = this.modifiedTimes.get(file);
+          if (!changed && cached !== undefined) {
+            nextModifiedTimes.set(file, cached);
+            return;
+          }
+          try {
+            nextModifiedTimes.set(
+              file,
+              (await stat(path.join(this.root, file))).mtimeMs,
+            );
+          } catch (cause) {
+            if ((cause as NodeJS.ErrnoException).code !== "ENOENT") throw cause;
+          }
+        }),
+      );
+    }
+    this.modifiedTimes = nextModifiedTimes;
     this.files = nextFiles;
     this.tasks = nextTasks;
     this.summaries = ids.map((id) => {
@@ -163,6 +194,12 @@ export class OpenSpecIndex {
         artifacts: artifactsFor([...nextFiles], id),
         ...progress(task?.groups ?? []),
         error: task?.error ?? null,
+        updatedAt: Math.max(
+          0,
+          ...artifactFiles
+            .filter((file) => changeForPath(file) === id)
+            .map((file) => nextModifiedTimes.get(file) ?? 0),
+        ),
       };
     });
     return {

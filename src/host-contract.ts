@@ -4,14 +4,23 @@ import {
 } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import { changeSchema, groupSchema } from "./model";
+import {
+  sourceSelectionSchema,
+  planningSourceSchema,
+  planningCatalogSchema,
+} from "./planning-source";
 
-const sourceSchema = z.object({ workspacePath: z.string().min(1) });
+const sourceSchema = sourceSelectionSchema.extend({
+  workspacePath: z.string().min(1),
+});
 export const snapshotSchema = z.object({
   changes: z.array(changeSchema),
   missing: z.boolean(),
   watchError: z.string().nullable(),
 });
 export const hostContract = defineRpcContract({
+  resolve: { input: sourceSchema, output: planningSourceSchema },
+  catalog: { input: sourceSchema, output: planningCatalogSchema },
   snapshot: { input: sourceSchema, output: snapshotSchema },
   change: {
     input: sourceSchema.extend({ changeId: z.string() }),
