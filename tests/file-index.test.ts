@@ -300,3 +300,41 @@ test("artifact modification times update recency without reading unrelated tasks
     await f.dispose();
   }
 });
+
+test("core coalesces bursts behind slow processing for shared consumers while other sources remain independent", async () => {
+  const first = await fixture(), second = await fixture();
+  const pool = new WatchPool(), d = driver();
+  let release!: () => void;
+  const gate = new Promise<void>(resolve => { release = resolve; });
+  let blocked = false, stall = false;
+  const emit = d.context.experimental_emitSignal;
+  d.context.experimental_emitSignal = async (name, payload) => {
+    await emit(name, payload);
+    if (stall && !blocked && (payload as { environmentId: string }).environmentId === "first") { blocked = true; await gate; }
+  };
+  try {
+    for (const subscriptionId of ["changes", "specifications"]) await pool.subscribe({ workspacePath: first.root, environmentId: "first", subscriptionId }, d.context);
+    await pool.subscribe({ workspacePath: second.root, environmentId: "second", subscriptionId: "other-source" }, d.context);
+    assert.equal(d.watches.length, 2);
+    assert.equal(d.watches[0].options.debounceMs, 120);
+    assert.equal(d.watches[0].options.maxWaitMs, 700);
+    d.signals.length = 0; stall = true;
+    const event = { kind: "changed", changes: [{ path: "changes/a/tasks.md", type: "update" }] } as const;
+    const running = d.watches[0].listener(event);
+    await waitFor(() => blocked);
+    await first.write("changes/a/tasks.md", "- [x] Latest state");
+    await Promise.all(Array.from({ length: 60 }, (_, i) => first.write(`specs/core/bulk-${i}/spec.md`, `# Bulk ${i}\n\n## Requirements\n`)));
+    const bulk = Array.from({ length: 60 }, (_, i) => d.watches[0].listener({ kind: "changed", changes: [{ path: `specs/core/bulk-${i}/spec.md`, type: "create" }] }));
+    const burst = Array.from({ length: 300 }, () => d.watches[0].listener(event));
+    await second.write("changes/a/tasks.md", "- [x] Independent source");
+    await d.watches[1].listener(event);
+    assert.equal((await pool.snapshot(second.root)).changes.find(change => change.id === "a")?.done, 1);
+    release(); await Promise.all([running, ...bulk, ...burst]);
+    assert.equal((await pool.snapshot(first.root)).changes.find(change => change.id === "a")?.done, 1);
+    assert.equal((await pool.specifications(first.root)).entries.length, 60);
+    assert.match((await pool.specification(first.root, "core/bulk-59")).main!.content, /Bulk 59/);
+    assert.equal(d.signals.filter(signal => (signal as { environmentId: string }).environmentId === "first").length, 2, "one running and one coalesced pending update, not 361 queued updates");
+    await pool.unsubscribe("changes"); assert.equal(d.watches[0].disposed, false);
+    await pool.unsubscribe("specifications"); assert.equal(d.watches[0].disposed, true);
+  } finally { release(); await pool.dispose(); await first.dispose(); await second.dispose(); }
+});

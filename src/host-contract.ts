@@ -1,3 +1,4 @@
+import { specificationInputSchema, specificationCatalogSchema, specificationDocumentSchema } from "./specification-model";
 import {
   defineRpcContract,
   type ExperimentalHostSignals,
@@ -21,6 +22,8 @@ export const snapshotSchema = z.object({
 export const hostContract = defineRpcContract({
   resolve: { input: sourceSchema, output: planningSourceSchema },
   catalog: { input: sourceSchema, output: planningCatalogSchema },
+  specifications: { input: sourceSchema, output: specificationCatalogSchema },
+  specification: { input: sourceSchema.extend(specificationInputSchema.shape), output: specificationDocumentSchema },
   snapshot: { input: sourceSchema, output: snapshotSchema },
   change: {
     input: sourceSchema.extend({ changeId: z.string() }),

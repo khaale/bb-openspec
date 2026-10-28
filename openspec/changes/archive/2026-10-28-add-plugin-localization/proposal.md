@@ -12,7 +12,7 @@ The plugin interface currently contains hard-coded Russian strings and is unsuit
 ## Capabilities
 
 ### New Capabilities
-- `openspec-localization`: language selection and a localized plugin interface.
+- `core/localization`: language selection and a localized plugin interface.
 
 ### Modified Capabilities
 None; existing capabilities are currently described in unarchived changes.

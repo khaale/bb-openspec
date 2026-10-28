@@ -14,7 +14,7 @@ The plugin currently reads only openspec/ in the selected checkout. In store-onl
 
 ### New Capabilities
 
-- `openspec-store-sources`: resolve OpenSpec sources, select stores, isolate links, and provide agent context.
+- `core/store-sources`: resolve OpenSpec sources, select stores, isolate links, and provide agent context.
 
 ### Modified Capabilities
 

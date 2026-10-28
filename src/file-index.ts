@@ -1,3 +1,4 @@
+import { SpecificationIndex } from "./specification-index";
 import { pluginError } from "./plugin-error";
 import { readdir, readFile, realpath, stat } from "node:fs/promises";
 import path from "node:path";
@@ -37,6 +38,7 @@ export async function exists(directory: string) {
 /** Volatile index owned by an active native watch, never persisted to disk. */
 export class OpenSpecIndex {
   readonly root: string;
+  readonly specifications: SpecificationIndex;
   private files = new Set<string>();
   private tasks = new Map<string, Tasks>();
   private summaries: Change[] = [];
@@ -50,6 +52,7 @@ export class OpenSpecIndex {
     if (!path.isAbsolute(workspacePath))
       throw pluginError("error.absolutePathRequired");
     this.root = path.join(workspacePath, "openspec");
+    this.specifications = new SpecificationIndex(this.root);
   }
 
   async initialize() {
@@ -181,6 +184,7 @@ export class OpenSpecIndex {
     }
     this.modifiedTimes = nextModifiedTimes;
     this.files = nextFiles;
+    this.specifications.invalidate(nextFiles, changes);
     this.tasks = nextTasks;
     this.summaries = ids.map((id) => {
       const task = nextTasks.get(`${changeRelative(id)}/tasks.md`);

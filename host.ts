@@ -17,6 +17,8 @@ export default experimental_defineHostEntry({
   handlers: {
     resolve: resolved,
     catalog: ({ workspacePath }) => resolver.catalog(workspacePath),
+    specifications: async (input) => pool.specifications((await resolved(input)).rootPath),
+    specification: async (input) => pool.specification((await resolved(input)).rootPath, input.capabilityId, input.changeId),
     snapshot: async (input) => pool.snapshot((await resolved(input)).rootPath),
     change: async (input) =>
       pool.change((await resolved(input)).rootPath, input.changeId),

@@ -1,8 +1,11 @@
+import { usePlanningContext, savePlanningContext } from "./src/planning-context";
+import { SpecificationsPanel } from "./src/specifications-panel";
 import {
   Children,
   useCallback,
   useEffect,
   useState,
+  useRef,
   type ReactNode,
 } from "react";
 import {
@@ -815,19 +818,35 @@ function ChangeDetail({
 function OpenSpecPage({
   subPath = "",
   threadId,
+  specifications = false,
 }: {
   subPath?: string;
   threadId?: string;
+  specifications?: boolean;
 }) {
   const { t, number, taskCount, locale } = useI18n();
   const context = useBbContext();
   const rpc = useRpc<typeof rpcContract>();
   const [routeEnvironment, ...routeChangeParts] = subPath.split("/");
   const routeChange = routeChangeParts.join("/");
-  const [projectId, setProjectId] = useState<string>();
-  const [environmentId, setEnvironmentId] = useState<string>();
+  const planningContext = usePlanningContext();
+  const initialContext = !threadId && (!routeEnvironment || routeEnvironment === planningContext?.environmentId) ? planningContext : undefined;
+  const [projectId, setProjectId] = useState<string | undefined>(initialContext?.projectId);
+  const [environmentId, setEnvironmentId] = useState<string | undefined>(initialContext?.environmentId);
   const [changeId, setChangeId] = useState<string>();
-  const [storeId, setStoreId] = useState<string | null>();
+  const [storeId, setStoreId] = useState<string | null | undefined>(initialContext?.storeId);
+  const lastPlanningContext = useRef(planningContext);
+  useEffect(() => {
+    if (lastPlanningContext.current === planningContext) return;
+    lastPlanningContext.current = planningContext;
+    if (threadId || !planningContext) return;
+    setProjectId(planningContext.projectId);
+    setEnvironmentId(planningContext.environmentId);
+    setStoreId(planningContext.storeId);
+    setChangeId(undefined);
+    setArchived(false);
+    setCompactDetail(false);
+  }, [planningContext, threadId]);
   const [archived, setArchived] = useState(false);
   const [query, setQuery] = useState("");
   const [editingSource, setEditingSource] = useState(false);
@@ -899,16 +918,21 @@ function OpenSpecPage({
       contract: rpcContract,
       method: "changes",
       input: { environmentId: source?.id ?? "", ...sourceSelection },
-      enabled: !!source,
+      enabled: !!source && !specifications,
     }),
   );
+  const specCatalog = liveQueryView(useRpcQuery({
+    contract: rpcContract, method: "specifications",
+    input: { environmentId: source?.id ?? "", ...sourceSelection }, enabled: !!source && specifications,
+  }));
+  const sourceQuery = specifications ? specCatalog : changes;
   const [refreshError, setRefreshError] = useState<string>();
   const refreshFiles = useCallback(() => {
     if (!source) return;
     setRefreshError(undefined);
     void rpc
       .call("refresh", { environmentId: source.id, ...sourceSelection })
-      .then(changes.refresh, (cause) => setRefreshError(errorMessage(cause)));
+      .then(() => { changes.refresh(); specCatalog.refresh(); }, (cause) => setRefreshError(errorMessage(cause)));
   }, [rpc, source?.id, selectedStoreId, changes.refresh]);
   const preferredId =
     changeId ?? (routeChange || sources.data?.preferredChangeId);
@@ -944,7 +968,7 @@ function OpenSpecPage({
   const projectName =
     sources.data?.projects.find((project) => project.id === selectedProjectId)
       ?.name ?? t("chooseProject");
-  const displayedStoreId = changes.data?.source.storeId ?? selectedStoreId;
+  const displayedStoreId = sourceQuery.data?.source.storeId ?? selectedStoreId;
   const sourceLabel = source
     ? `${projectName} · ${source.name || t("projectCheckout")}${displayedStoreId ? ` · store: ${displayedStoreId}` : ""}`
     : projectName;
@@ -952,7 +976,7 @@ function OpenSpecPage({
     <TooltipProvider delayDuration={350}>
       <div className="os-root" lang={locale}>
         <header
-          className="os-top"
+          className={`os-top${specifications ? " os-spec-top" : ""}`}
           onKeyDown={(event) => {
             if (event.key === "Escape") setEditingSource(false);
           }}
@@ -992,6 +1016,7 @@ function OpenSpecPage({
               </svg>
             </Button>
           </Hint>
+          {!specifications && <>
           <Hint label={compact ? t("showDetails") : t("showCards")}>
             <Button
               variant="ghost"
@@ -1007,6 +1032,7 @@ function OpenSpecPage({
               <ViewModeIcon compact={compact} />
             </Button>
           </Hint>
+          </>}
           <Hint label={t("refreshOpenSpec")}>
             <Button
               variant="ghost"
@@ -1034,6 +1060,7 @@ function OpenSpecPage({
                 }
                 disabled={!!threadId}
                 onChange={(event) => {
+                  if (!threadId) savePlanningContext({ projectId: event.target.value });
                   setProjectId(event.target.value);
                   setStoreId(undefined);
                   setEnvironmentId(undefined);
@@ -1053,6 +1080,7 @@ function OpenSpecPage({
                 value={source?.id ?? ""}
                 disabled={!!threadId || !sources.data?.environments.length}
                 onChange={(event) => {
+                  if (!threadId && selectedProjectId) savePlanningContext({ projectId: selectedProjectId, environmentId: event.target.value });
                   setEnvironmentId(event.target.value);
                   setStoreId(undefined);
                   setChangeId(undefined);
@@ -1080,6 +1108,7 @@ function OpenSpecPage({
                 }
                 onChange={(event) => {
                   const value = event.target.value;
+                  if (!threadId && selectedProjectId) savePlanningContext({ projectId: selectedProjectId, environmentId: source?.id, ...(value === "auto" ? {} : { storeId: value === "local" ? null : value.slice(6) }) });
                   setStoreId(
                     value === "auto"
                       ? undefined
@@ -1120,15 +1149,21 @@ function OpenSpecPage({
         </header>
         {sources.error && <Message error>{sources.error}</Message>}
         {refreshError && <Message error>{refreshError}</Message>}
-        {changes.data?.watchError && (
+        {sourceQuery.data?.watchError && (
           <Message error>
-            {t("watchUnavailable")} {changes.data.watchError}
+            {t("watchUnavailable")} {sourceQuery.data.watchError}
           </Message>
         )}
         {!source && sources.data && (
           <Message>{t("chooseReadyProject")}</Message>
         )}
-        {source && (
+        {source && specifications && <SpecificationsPanel
+          key={JSON.stringify([source.id, selectedStoreId, specCatalog.data?.source.rootPath])}
+          environmentId={source.id} hostId={source.hostId}
+          source={specCatalog.data?.source ?? { rootPath: source.path, storeId: selectedStoreId ?? null }}
+          catalog={specCatalog.data} error={specCatalog.error} routeCapability={routeChange} navigateSelection={!threadId} onRefresh={refreshFiles}
+        />}
+        {source && !specifications && (
           <div
             className={`os-layout${compact ? " os-compact" : ""}${compact && compactDetail ? " os-compact-detail" : ""}`}
           >
@@ -1281,6 +1316,12 @@ function NavigationPage({ subPath }: PluginNavPanelProps) {
     </I18nProvider>
   );
 }
+function SpecificationsPage({ subPath }: PluginNavPanelProps) {
+  return <I18nProvider><OpenSpecPage subPath={subPath} specifications /></I18nProvider>;
+}
+function ThreadSpecificationsPanel({ threadId }: { threadId: string }) {
+  return <I18nProvider><OpenSpecPage threadId={threadId} specifications /></I18nProvider>;
+}
 function ThreadPanel({ threadId }: { threadId: string }) {
   return (
     <I18nProvider>
@@ -1290,20 +1331,31 @@ function ThreadPanel({ threadId }: { threadId: string }) {
 }
 
 export default definePluginApp((app) => {
+  app.experimental_icons.register({ name: "openspec.book", component: ({ className }) => <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 5v16M12 5C9 2.5 5 2.5 2 4v15c3-1.5 7-1.5 10 1 3-2.5 7-2.5 10-1V4c-3-1.5-7-1.5-10 1Z"/><path d="M5 7h3M5 11h3M16 7h3M16 11h3"/></svg> });
   app.slots.navPanel({
     id: "openspec",
-    title: "OpenSpec",
+    title: "OpenSpec · Changes",
     icon: "ListTodo",
     path: "openspec",
     component: NavigationPage,
   });
+  app.slots.navPanel({ id: "specifications", title: "OpenSpec · Specs", icon: "openspec.book", path: "specifications", component: SpecificationsPage });
   app.slots.experimental_tab({
     context: { kind: "thread" },
     availability: "action",
     id: "change",
-    title: "OpenSpec",
+    title: "OpenSpec · Changes",
     icon: "ListTodo",
     component: ThreadPanel,
+    layout: "flush",
+  });
+  app.slots.experimental_tab({
+    context: { kind: "thread" },
+    availability: "action",
+    id: "specifications",
+    title: "OpenSpec · Specs",
+    icon: "openspec.book",
+    component: ThreadSpecificationsPanel,
     layout: "flush",
   });
 });

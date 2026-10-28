@@ -22,9 +22,9 @@ For discussion after the initial version: a board, creating and archiving change
 ### New Capabilities
 
 
-- `openspec-change-browser`: browse changes and their artifacts in the context of a project and environment.
-- `openspec-task-checklist`: view task groups, their statuses, and progress without manual editing.
-- `openspec-thread-context`: explicitly link a change to bb threads.
+- `change-management/change-browser`: browse changes and their artifacts in the context of a project and environment.
+- `change-management/task-checklist`: view task groups, their statuses, and progress without manual editing.
+- `change-management/thread-context`: explicitly link a change to bb threads.
 
 ### Modified Capabilities
 

@@ -1,3 +1,4 @@
+import { specificationInputSchema, specificationCatalogSchema, specificationDocumentSchema } from "./specification-model";
 import { defineRpcContract } from "@get-bb/plugin-sdk";
 import { z } from "zod";
 import {
@@ -53,6 +54,16 @@ export const rpcContract = defineRpcContract({
       liveTags.environment(input.environmentId),
       liveTags.changes(input.environmentId),
     ],
+  },
+  specifications: {
+    input: environmentInput,
+    output: specificationCatalogSchema.extend({ source: planningSourceSchema }),
+    tags: input => [liveTags.environment(input.environmentId), liveTags.specifications(input.environmentId)],
+  },
+  specification: {
+    input: environmentInput.extend(specificationInputSchema.shape),
+    output: specificationDocumentSchema,
+    tags: input => [liveTags.environment(input.environmentId), liveTags.specification(input.environmentId, input.capabilityId)],
   },
   refresh: { input: environmentInput, output: z.null() },
   detail: {

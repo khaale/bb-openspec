@@ -1,6 +1,6 @@
 # Release preparation
 
-This repository is being prepared for direct Git installation. Nothing has been published by these checks. Package: `bb-plugin-openspec`; plugin ID: `openspec`; current version: `0.4.0`; license: MIT.
+This repository is being prepared for direct Git installation. Nothing has been published by these checks. Package: `bb-plugin-openspec`; plugin ID: `openspec`; current version: `0.5.0`; license: MIT.
 
 ## Local checks
 
@@ -29,16 +29,16 @@ The repository URL comes from the configured Git remote. The MIT copyright name 
 
 ## Versioned Git release — later
 
-For this single root plugin, use immutable `vX.Y.Z` tags matching `package.json`. Do not move an existing release tag. The first public version can remain `0.4.0` if no further functional changes require a bump; the local version history does not imply earlier public releases.
+For this single root plugin, use immutable `vX.Y.Z` tags matching `package.json`. Do not move an existing release tag. The current functional update is `0.5.0`; the local version history does not imply earlier public releases.
 
 Before a release, review the exact account, public repository, commit, version, tag and push commands. A repository upload alone does not authorize publishing a release. After approval, create the annotated tag and push the approved commit and tag. Verify the public ref, then test installation in a separate bb profile or disposable environment so the development installation is preserved.
 
 Once an actual release exists, users can install a compatible version range. These are templates, not a currently available source:
 
 ```sh
-bb plugin install 'git:https://github.com/khaale/bb-openspec.git@^0.4.0'
+bb plugin install 'git:https://github.com/khaale/bb-openspec.git@^0.5.0'
 # For a deliberately fixed release:
-bb plugin install 'git:https://github.com/khaale/bb-openspec.git@v0.4.0'
+bb plugin install 'git:https://github.com/khaale/bb-openspec.git@v0.5.0'
 ```
 
 A bare repository URL tracks its default branch. Prefer a tag range for released versions. Users apply updates with `bb plugin outdated` and `bb plugin update openspec`. npm publication is not required for Git distribution and is not part of this preparation.

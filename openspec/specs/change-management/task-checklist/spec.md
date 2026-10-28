@@ -1,4 +1,4 @@
-# openspec-task-checklist Specification
+# change-management/task-checklist Specification
 
 ## Purpose
 Shows OpenSpec task groups and their completion status alongside change artifacts, leaving task-state management to the agent and source files.

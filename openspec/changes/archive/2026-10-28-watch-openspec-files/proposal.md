@@ -16,7 +16,7 @@ The five-second poll rescans OpenSpec and reads every tasks.md, including archiv
 
 ### New Capabilities
 
-- `openspec-live-updates`: update watched data on file and thread events without periodic reads, manage watcher lifetimes, and restore the current state.
+- `core/live-updates`: update watched data on file and thread events without periodic reads, manage watcher lifetimes, and restore the current state.
 
 ### Modified Capabilities
 

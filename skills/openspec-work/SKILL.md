@@ -64,3 +64,19 @@ means local, preserving existing assignments.
 After changing machine registration or project/default store selection, use
 `refresh` with environmentId and the same storeId selection. This refreshes
 root discovery and active watcher paths; ordinary file events do not run CLI.
+
+## Read specifications
+
+The navigation destinations are **OpenSpec · Changes** and **OpenSpec · Specs**.
+Both are also available in the thread panel Actions menu. They share user-selected project/environment/planning source within the browser;
+thread-embedded panels retain the thread's environment and binding.
+
+Read-only RPCs accept the same environment/store selection:
+
+- `specifications`: `{ "environmentId": "env_...", "storeId": null }` returns full capability paths, main references and active delta references, plus the resolved source. Archives are not pending deltas.
+- `specification`: `{ "environmentId": "env_...", "storeId": null, "capabilityId": "core/example", "changeId": "change-name" }` returns readable main/delta sources, the proposed document, comparison blocks and unresolved issues. Omit changeId for main-only reading. One selected change is applied; simultaneous deltas are never merged.
+
+Projection is a preview, not OpenSpec validation or approval to sync/archive.
+Current/Proposed/Compare and tree status do not change repository files. New
+capabilities can be read before the first archive; unsupported/conflicting
+operations expose sources and diagnostics instead of a successful partial result.

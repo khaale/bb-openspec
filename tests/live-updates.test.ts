@@ -19,8 +19,8 @@ test("live producer scopes file invalidation, reconciles on restart and releases
   }));
   let producer!: Parameters<typeof bb.rpc.experimental_whileWatched>[1];
   bb.rpc.experimental_whileWatched = (method, handler) => {
-    assert.equal(method, "changes");
-    producer = handler;
+    assert.ok(["changes", "specifications"].includes(method));
+    if (method === "changes") producer = handler;
   };
   const invalidations: string[][] = [];
   bb.rpc.experimental_invalidate = (tags) => {
@@ -108,6 +108,12 @@ test("live producer scopes file invalidation, reconciles on restart and releases
       },
     });
     assert.deepEqual(invalidations, [["openspec:environment:env"]]);
+    invalidations.length = 0;
+    await changed({ hostId: "host", payload: { environmentId: "env", paths: ["specs/core/localization/spec.md"], structural: false, rescan: false, error: null } });
+    assert.deepEqual(new Set(invalidations.flat()), new Set([
+      "openspec:document:env:specs/core/localization/spec.md",
+      "openspec:specifications:env", "openspec:specification:env:core/localization",
+    ]));
     first.abort();
     await running1;
     assert.equal(calls.filter((c) => c.method === "unwatch").length, 1);

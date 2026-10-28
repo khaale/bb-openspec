@@ -1,4 +1,6 @@
 export const liveTags = {
+  specifications: (environmentId: string) => `openspec:specifications:${environmentId}`,
+  specification: (environmentId: string, capabilityId: string) => `openspec:specification:${environmentId}:${capabilityId}`,
   binding: (threadId: string) => `openspec:binding:${threadId}`,
   environment: (environmentId: string) =>
     `openspec:environment:${environmentId}`,

@@ -5,6 +5,7 @@ import { promisify } from "node:util";
 import { mkdir, mkdtemp, rm, writeFile, realpath } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { OpenSpecIndex } from "../src/file-index";
 import { SourceResolver } from "../src/source-resolver";
 
 const exec = promisify(execFile);
@@ -59,6 +60,19 @@ try {
   console.log(
     "PASS local planning wins; explicit store overrides local planning",
   );
+  // Identical full capability paths must read from the resolved root only.
+  for (const [root, text] of [[code, "local"], [store, "store"]]) {
+    await mkdir(path.join(root, "openspec/specs/core/shared"), { recursive: true });
+    await writeFile(path.join(root, "openspec/specs/core/shared/spec.md"), `# ${text}\n\n## Requirements\n`);
+  }
+  for (const [selection, expected] of [[null, "local"], ["fixture-plans", "store"]] as const) {
+    const source = await resolver.resolve(code, selection);
+    const index = new OpenSpecIndex(source.rootPath); await index.initialize();
+    assert.deepEqual((await index.specifications.catalog()).map(entry => entry.id), ["core/shared"]);
+    assert.match((await index.specifications.document("core/shared")).main!.content, new RegExp(`# ${expected}`));
+  }
+  console.log("PASS same-name nested specifications stay isolated between local and external store roots");
+
   const empty = path.join(fixture, "empty");
   await mkdir(empty);
   await exec("openspec", ["config", "set", "defaultStore", "fixture-plans"], {

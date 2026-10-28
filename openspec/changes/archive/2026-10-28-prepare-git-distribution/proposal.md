@@ -12,7 +12,7 @@ The plugin works from a local directory, but Git installation uses a different s
 ## Capabilities
 
 ### New Capabilities
-- `plugin-distribution`: reproducible preparation for Git installation and release documentation.
+- `core/distribution`: reproducible preparation for Git installation and release documentation.
 
 ### Modified Capabilities
 

@@ -1,4 +1,4 @@
-# openspec-store-sources Specification
+# core/store-sources Specification
 
 ## Purpose
 Defines selection of a local or registered OpenSpec planning source independently of the agent's code environment.

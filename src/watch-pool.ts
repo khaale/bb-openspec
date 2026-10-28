@@ -12,6 +12,7 @@ import {
   type FileChange,
   type FileUpdate,
 } from "./file-index";
+import { LIMITS } from "./limits";
 import { safeRelative } from "./change-paths";
 import { errorMessage } from "./reader-error";
 
@@ -27,6 +28,8 @@ type RecordEntry = {
   error: string | null;
   closed: boolean;
   rearm?: NodeJS.Immediate;
+  pending?: Map<string, FileChange> | null;
+  draining?: Promise<void>;
 };
 
 export class WatchPool {
@@ -39,6 +42,36 @@ export class WatchPool {
       record.error = errorMessage(cause);
     });
     return next;
+  }
+
+  /** One running batch plus one coalesced pending batch per source, not one queued job per event. */
+  private update(record: RecordEntry, changes: FileChange[] | null): Promise<void> {
+    if (record.closed) return Promise.resolve();
+    if (changes === null) record.pending = null;
+    else if (record.pending !== null) {
+      record.pending ??= new Map();
+      for (const change of changes) {
+        const previous = record.pending.get(change.path);
+        record.pending.set(change.path, previous && previous.type !== change.type ? { ...change, type: "create" } : change);
+      }
+      if (record.pending.size > LIMITS.paths) record.pending = null;
+    }
+    if (!record.draining) {
+      const drain = this.enqueue(record, async () => {
+        while (record.pending !== undefined && !record.closed) {
+          const pending = record.pending;
+          record.pending = undefined;
+          const update = await record.index.update(pending === null ? null : [...pending.values()]);
+          record.error = null;
+          await this.publish(record, update);
+        }
+      });
+      record.draining = drain.finally(() => {
+        record.draining = undefined;
+        if (record.pending !== undefined && !record.closed) void this.update(record, []).catch(() => {});
+      });
+    }
+    return record.draining;
   }
 
   private async publish(record: RecordEntry, update: FileUpdate) {
@@ -117,11 +150,7 @@ export class WatchPool {
         const changes = this.normalize(record, event);
         if (changes !== null && !changes.length) return;
         try {
-          await this.enqueue(record, async () => {
-            const update = await record.index.update(changes);
-            record.error = null;
-            await this.publish(record, update);
-          });
+          await this.update(record, changes);
         } catch {
           await this.publish(record, {
             paths: [],
@@ -209,6 +238,7 @@ export class WatchPool {
     record.subscribers.delete(subscriptionId);
     if (record.subscribers.size) return;
     record.closed = true;
+    record.pending = undefined;
     this.records.delete(record.index.workspacePath);
     if (record.rearm) clearImmediate(record.rearm);
     await record.starting;
@@ -235,6 +265,15 @@ export class WatchPool {
 
   async change(workspacePath: string, changeId: string) {
     return (await this.index(workspacePath)).index.change(changeId);
+  }
+
+  async specifications(workspacePath: string) {
+    const { index, error } = await this.index(workspacePath);
+    return { entries: await index.specifications.catalog(), missing: index.snapshot().missing, watchError: error };
+  }
+
+  async specification(workspacePath: string, capabilityId: string, changeId?: string) {
+    return (await this.index(workspacePath)).index.specifications.document(capabilityId, changeId);
   }
 
   async refresh(workspacePath: string) {

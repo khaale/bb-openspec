@@ -1,4 +1,4 @@
-# plugin-distribution Specification
+# core/distribution Specification
 
 ## Purpose
 Defines reproducible checks for installing the plugin from Git and release-maintenance documentation without automatic publication.

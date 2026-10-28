@@ -1,4 +1,4 @@
-# openspec-live-updates Specification
+# core/live-updates Specification
 
 ## Purpose
 Keeps OpenSpec panels up to date when files and threads change, without periodically accessing the filesystem of an unchanged project.

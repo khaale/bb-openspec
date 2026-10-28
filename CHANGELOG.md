@@ -2,6 +2,15 @@
 
 These versions record local development; they do not imply public releases.
 
+## 0.5.0 — 2026-10-28
+
+- Separate OpenSpec · Specs panel with a searchable recursive tree of current and active-change specifications.
+- Read-only Current / Proposed / Compare, explicit change source, Git-style status and diagnostics for unresolved operations.
+- Consistent Changes/Specs names, distinct icons and shared navigation planning context.
+- Unified watcher pipeline with bounded pending event coalescing, shared caches and targeted specification invalidation.
+- Specification namespaces reorganized into core, change-management and capability-management.
+- English/Russian messages, narrow tree/document navigation, documentation and CLI projection conformance checks.
+
 ## 0.4.0 — 2026-10-28
 
 - English, Russian and automatic browser-language selection through plugin settings.

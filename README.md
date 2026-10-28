@@ -7,6 +7,8 @@ Track OpenSpec changes and task progress in [bb](https://getbb.app/), read speci
 ## Features
 
 - Active and archived changes, search, project and environment selection.
+- A separate **OpenSpec · Specs** panel: a searchable namespace tree combining main specs and active change deltas, including capabilities before their first archive.
+- Read complete specifications in **Current / Proposed / Compare**, with Git-style status colors, explicit change selection and visible unresolved operations.
 - Markdown previews for proposals, specifications, designs and tasks, with access to the source files in bb.
 - Read-only `✓` / `○` checklists and progress from `tasks.md`; agents update the files.
 - Compact cards or a list with details, including linked thread status and an animated working indicator.
@@ -19,9 +21,17 @@ Track OpenSpec changes and task progress in [bb](https://getbb.app/), read speci
 
 ## Screenshots
 
-| Full view | Narrow panel |
+| Changes · full view | Changes · narrow panel |
 | --- | --- |
 | ![OpenSpec full view with task groups and completion status](docs/screenshots/details.jpg) | ![OpenSpec narrow panel](docs/screenshots/narrow.jpg) |
+
+| Specs · tree and comparison | Specs · thread panel |
+| --- | --- |
+| ![OpenSpec specification tree with Current and Proposed requirement comparison](docs/screenshots/specifications.jpg) | ![OpenSpec Specs tab in a narrow thread panel](docs/screenshots/specifications-narrow.jpg) |
+
+Changes and Specs open together in bb.
+
+![Changes and Specs together](docs/screenshots/changes-and-specs.png)
 
 ## Requirements
 
@@ -40,7 +50,7 @@ npm run build
 bb plugin install .
 ```
 
-Open **OpenSpec** in bb navigation or from a thread's panel tabs. Click the project name in the header to select its environment and planning source. Use the view icon to switch between compact cards and details.
+Open **OpenSpec · Changes** or **OpenSpec · Specs** in bb navigation. To keep either view beside a conversation, open the thread's right panel, click **+**, and choose **OpenSpec · Changes** or **OpenSpec · Specs** under **Actions**. bb remembers opened tabs separately for each thread. Click the project name in the header to select its environment and planning source. Use the view icon to switch between compact cards and details.
 
 Install the current main branch from Git:
 
@@ -48,7 +58,15 @@ Install the current main branch from Git:
 bb plugin install 'git:https://github.com/khaale/bb-openspec.git@main'
 ```
 
-Tagged releases and version ranges are described in [release preparation](docs/RELEASING.md). A `v0.4.0` release tag has not been created by this update.
+Tagged releases and version ranges are described in [release preparation](docs/RELEASING.md). A `v0.5.0` release tag has not been created by this update.
+
+## Specifications
+
+**OpenSpec · Specs** shows `openspec/specs/**/spec.md` together with specifications introduced or modified by active changes. Folders follow full relative paths; a parent may have its own `spec.md` and children. Archived deltas are excluded from pending work.
+
+Select a specification to read the complete document. **Current** reads the main spec; **Proposed** applies one identified change; **Compare** shows before/after requirement blocks, including removals and renames. Choose a change when several affect the same capability. A new capability opens Proposed with Current unavailable. Green **A** indicates an addition, amber **M** a modification. Unsupported or conflicting operations expose readable sources and diagnostics instead of a partial proposed result. Projection is a read-only preview; it does not perform CLI validation, sync or archive.
+
+In narrow panels, select a tree entry to read it and use the back button to return. Both navigation panels share user-selected project, environment and planning source within the browser; thread panels keep their own environment and binding.
 
 ## Agent threads
 
@@ -89,7 +107,7 @@ Click refresh after changing registration, `store:` configuration or `defaultSto
 
 ## Updates and limits
 
-Initial loading indexes the planning directory and reads task files. Saving a known `tasks.md` rereads that file; structural changes rescan the file list. Documents load on demand. Panels share a watcher per path, released after the last subscription closes. Reconnect triggers a rescan; a watch error can be retried with refresh. Thread status uses bb events.
+Initial loading indexes the planning directory and reads task files. The Specs catalog caches active-delta summaries; full main/delta documents load on demand in a bounded cache. Saving a known `tasks.md` rereads that file; structural changes rescan the file list. Documents load on demand. Both panels share a watcher and update queue per path, with native 120 ms debounce, 700 ms maximum batch wait and one coalesced pending batch during slow processing. These timings bound native batching, not end-to-end processing. The watcher is released after the last subscription closes. Reconnect triggers a rescan; a watch error can be retried with refresh. Thread status uses bb events.
 
 Standard active and archived change directories are supported, including `proposal.md`, `design.md`, `tasks.md` and `specs/**/spec.md`. Limits per planning source: 200 changes, 4000 files/directories and 512 KiB per document. Thread discovery considers up to 200 recent visible threads in an environment.
 
@@ -99,6 +117,7 @@ Standard active and archived change directories are supported, including `propos
 npm ci --include=dev
 npm run check
 npm run verify:git-build
+npm run test:specifications # requires OpenSpec CLI; isolated archive/projection comparison
 npm run test:stores # requires OpenSpec CLI; uses isolated temporary stores
 ```
 
@@ -115,13 +134,14 @@ For live development, run `bb plugin dev`. After a one-off build, use `bb plugin
 | `host.ts`, `src/file-index.ts`, `src/watch-pool.ts` | Host file index and native watchers |
 | `src/source-resolver.ts` | CLI store discovery and source cache |
 | `src/live-updates.ts` | Query invalidation and subscription lifecycle |
+| `src/specification-*.ts`, `src/specifications-panel.tsx` | Specification catalog, projection and reader |
 | `src/model.ts` | Task parser and shared model |
 | `src/messages/`, `src/i18n*.ts*` | Locale registry, catalogs and UI translation |
 | `openspec/` | Plugin development specifications and changes |
 
 Development follows OpenSpec. Proposals, designs, specifications and tasks are maintained in English, as required by `openspec/config.yaml`. Current requirements live in [openspec/specs](openspec/specs/); completed changes are in [the archive](openspec/changes/archive/). Archived work covers the [task browser](openspec/changes/archive/2026-10-28-add-openspec-task-browser/), [watcher](openspec/changes/archive/2026-10-28-watch-openspec-files/), [stores](openspec/changes/archive/2026-10-28-support-openspec-stores/), [localization](openspec/changes/archive/2026-10-28-add-plugin-localization/) and [distribution preparation](openspec/changes/archive/2026-10-28-prepare-git-distribution/). Design mockups under `docs/mockups/` record earlier iterations.
 
-Verification reports: [watcher](docs/research/watcher-verification.md), [stores](docs/research/stores-verification.md), [localization](docs/research/localization-verification.md). See [CHANGELOG.md](CHANGELOG.md) for version history and [docs/RELEASING.md](docs/RELEASING.md) for the Git release checklist and future Community submission requirements.
+Verification reports: [specifications](docs/research/specifications-verification.md), [watcher](docs/research/watcher-verification.md), [stores](docs/research/stores-verification.md), [localization](docs/research/localization-verification.md). See [CHANGELOG.md](CHANGELOG.md) for version history and [docs/RELEASING.md](docs/RELEASING.md) for the Git release checklist and future Community submission requirements.
 
 ## License
 

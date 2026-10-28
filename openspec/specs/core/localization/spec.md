@@ -1,4 +1,4 @@
-# openspec-localization Specification
+# core/localization Specification
 
 ## Purpose
 Defines language selection and translation of the OpenSpec interface in bb while preserving the original repository content and agent context.

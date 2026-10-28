@@ -1,6 +1,6 @@
 {
   "name": "bb-plugin-openspec",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "type": "module",
   "engines": {
     "bb": ">=0.47",
@@ -8,7 +8,7 @@
   },
   "bb": {
     "name": "OpenSpec",
-    "description": "Browse OpenSpec changes, track task progress and launch linked agent threads.",
+    "description": "Browse OpenSpec changes and specifications, preview proposed updates and launch linked agents.",
     "branding": {
       "icon": "ListTodo"
     },
@@ -60,9 +60,10 @@
     "build": "bb plugin build",
     "test:stores": "tsx scripts/verify-stores.ts",
     "verify:git-build": "node scripts/verify-git-build.mjs",
-    "check": "npm run typecheck && npm test && npm run build"
+    "check": "npm run typecheck && npm test && npm run build",
+    "test:specifications": "tsx scripts/verify-specifications.ts"
   },
-  "description": "Browse OpenSpec changes, track task progress and launch linked agent threads.",
+  "description": "Browse OpenSpec changes and specifications, preview proposed updates and launch linked agents.",
   "license": "MIT",
   "repository": {
     "type": "git",

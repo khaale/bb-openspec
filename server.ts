@@ -200,6 +200,15 @@ export default function plugin(bb: BbPluginApi) {
         watchError: live.error(environmentId, storeId) ?? result.watchError,
       };
     },
+    specifications: async ({ environmentId, storeId }) => {
+      const { source, selected } = await planning(environmentId, storeId);
+      const result = await host.call("specifications", { workspacePath: selected.rootPath, storeId: null }, { hostId: source.hostId });
+      return { ...result, source: selected, watchError: live.error(environmentId, storeId) ?? result.watchError };
+    },
+    specification: async ({ environmentId, storeId, capabilityId, changeId }) => {
+      const { source, selected } = await planning(environmentId, storeId);
+      return host.call("specification", { workspacePath: selected.rootPath, storeId: null, capabilityId, ...(changeId ? { changeId } : {}) }, { hostId: source.hostId });
+    },
     refresh: async ({ environmentId, storeId }) => {
       const source = await workspace(sdk, environmentId);
       await host.call(

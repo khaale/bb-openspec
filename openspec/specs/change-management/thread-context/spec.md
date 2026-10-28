@@ -1,4 +1,4 @@
-# openspec-thread-context Specification
+# change-management/thread-context Specification
 
 ## Purpose
 Links OpenSpec changes to bb threads, allowing users to start agent work with the selected change context and return to the associated thread.

@@ -1,3 +1,4 @@
+import { specificationPath } from "./specification-model";
 import { pluginError } from "./plugin-error";
 import { randomUUID } from "node:crypto";
 import type { BbPluginApi } from "@get-bb/plugin-sdk";
@@ -71,10 +72,10 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
         errorMessage(cause),
       );
     }
-    bb.rpc.experimental_invalidate([liveTags.changes(entry.environmentId)]);
+    bb.rpc.experimental_invalidate([liveTags.changes(entry.environmentId), liveTags.specifications(entry.environmentId)]);
   }
 
-  bb.rpc.experimental_whileWatched("changes", async (read, signal) => {
+  const observe = async (read: { input: unknown } | { key: string }, signal: AbortSignal) => {
     if (!("input" in read)) return;
     // Reload can restore reads before activation; services start after activation.
     await ready;
@@ -116,7 +117,9 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
         bb.log.warn(`OpenSpec watcher cleanup: ${errorMessage(cause)}`);
       }
     }
-  });
+  };
+  bb.rpc.experimental_whileWatched("changes", observe);
+  bb.rpc.experimental_whileWatched("specifications", observe);
 
   disposers.push(
     host.experimental_onSignal("changed", ({ hostId, payload }) => {
@@ -129,8 +132,10 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
       )
         return;
       const tags = new Set<string>();
-      if (payload.rescan || payload.structural || payload.error)
+      if (payload.rescan || payload.structural || payload.error) {
         tags.add(liveTags.changes(payload.environmentId));
+        tags.add(liveTags.specifications(payload.environmentId));
+      }
       if (payload.rescan || payload.structural) {
         // Structural changes can add/remove the selected artifact as well as its task file.
         bb.rpc.experimental_invalidate([
@@ -139,6 +144,8 @@ export function registerLiveUpdates(bb: BbPluginApi, host: Host) {
         return;
       }
       for (const file of payload.paths) {
+        const spec = specificationPath(file);
+        if (spec) { tags.add(liveTags.specifications(payload.environmentId)); tags.add(liveTags.specification(payload.environmentId, spec.id)); }
         tags.add(liveTags.document(payload.environmentId, file));
         const changeId = changeForPath(file);
         if (changeId) tags.add(liveTags.changes(payload.environmentId));
