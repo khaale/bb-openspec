@@ -72,5 +72,16 @@
   "homepage": "https://github.com/khaale/bb-openspec#readme",
   "bugs": {
     "url": "https://github.com/khaale/bb-openspec/issues"
-  }
+  },
+  "author": {
+    "name": "Aleksander Khanteev",
+    "url": "https://github.com/khaale"
+  },
+  "keywords": [
+    "bb-plugin",
+    "openspec",
+    "specifications",
+    "tasks",
+    "agents"
+  ]
 }

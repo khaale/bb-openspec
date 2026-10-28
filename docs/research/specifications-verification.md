@@ -30,7 +30,7 @@ The slow-consumer stress test holds one source's delivery open, sends 300 repeat
 - The real registered magma-agent-toolkit store renders its nested union tree, including change-only capabilities, multiple source choices and readable unresolved operations. No store files were modified.
 - Two browser pages verify shared context: a store selected in Specs is inherited by Changes; switching Changes to Local updates the already-open Specs page via browser storage events. Thread panels retain their own binding behavior.
 - A temporary marker added to a local main spec appears in the open Proposed document through native file events without refresh. Restoring the exact original bytes removes it. Both panels were open during this check.
-- Real English specification screenshots show the tree with Compare in docs/screenshots/specifications.jpg and the narrow thread tab in docs/screenshots/specifications-narrow.jpg. The user-provided simultaneous Changes/Specs view is saved as docs/screenshots/changes-and-specs.png. Both READMEs include these images. Existing Changes full/narrow screenshots remain; there is no redundant compact-list screenshot.
+- The original implementation screenshots were replaced during marketplace preparation by one shared set under marketplace/screenshots/openspec/. Both READMEs reference that set; see marketplace/README.md for the listing bundle.
 
 These checks do not publish a release, push Git, submit to the marketplace, sync main specifications or archive the active feature change.
 

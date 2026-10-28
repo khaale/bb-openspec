@@ -1,6 +1,6 @@
 # Release preparation
 
-This repository is being prepared for direct Git installation. Nothing has been published by these checks. Package: `bb-plugin-openspec`; plugin ID: `openspec`; current version: `0.5.0`; license: MIT.
+This repository is being prepared for direct Git installation. Nothing has been published by these checks. Package: `bb-plugin-openspec`; plugin ID: `openspec`; current version: `0.5.0`; license: MIT. The local listing bundle is in [marketplace/](../marketplace/README.md).
 
 ## Local checks
 
@@ -51,9 +51,10 @@ Use the [submit-a-plugin skill](https://github.com/get-bb/bb/blob/main/plugins/b
 - Candidate primary category: `tasks-and-workflows`. The existing `ListTodo` host icon can be used; custom artwork is optional.
 - The entry filename and ID must be `openspec`; neither the current entries nor reserved IDs contain `openspec` as of the check date; recheck availability before submission. The author account must be the actual submitter. `version` and `engines` belong to the plugin manifest, not the entry.
 - `PLUGIN_OVERVIEW.md` is prepared beside `package.json`, below 4000 characters and using permitted Markdown. It will be copied into `overview/openspec.md` in the marketplace repository.
-- Capture two or three current, real UI screenshots: details, compact cards and optionally a thread panel. Each must be at least 1200 pixels wide and no larger than 2 MiB, with no private paths or unrelated thread content. The English README images are 1280 × 900 (full view) and 320 × 900 (narrow panel). The narrow image does not meet the submission width and needs a new capture with surrounding app context. Do not upscale them as a substitute for a new capture.
-- Select and verify the real public Git source and semver range before writing `entries/openspec.json`. No placeholder entry is prepared here.
+- Three current screenshots are captured from the installed plugin in a desktop browser reporting DPR 2: Changes (1280 × 900), Specs (1280 × 900), and stacked Changes/Specs (1255 × 933). The thread list is hidden; the combined view is captured directly from its real panel region. All files are below 2 MiB and shared by the READMEs and listing bundle under `marketplace/screenshots/openspec/`. Old README-only images were removed.
+- A local `marketplace/entries/openspec.json` is prepared with the verified public Git source tracking `main`, the actual author account, category/tags and shared screenshot references. Before submission, either keep branch tracking explicitly or create an approved release tag and replace the source with its semver range. No nonexistent tag is referenced.
 - In the marketplace checkout, run its current checks: `npm ci`, `npm run build`, `npm test`, `npm run gate:v1`, `npm run check`. The final check verifies remote sources and cannot be completed against an unpublished plugin.
+- The current official build and remote-source liveness check pass in an isolated single-entry fixture. This checks our v1/v2 metadata, category, icon, overview and all screenshot files; full marketplace PR checks remain a submission step.
 - Only after explicit authorization, prepare the fork/branch and submit a PR. Marketplace acceptance is a separate review and is not implied by passing local checks.
 
-The submission skill is used now for preparation only. No marketplace clone, fork, entry, PR, release tag, push or npm publication is performed by this workflow.
+The submission skill is used now for preparation only. The local entry/assets bundle and isolated validation fixture are prepared; no fork, marketplace PR, release tag, push or npm publication is performed by this workflow.

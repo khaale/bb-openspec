@@ -20,17 +20,13 @@
 
 ## Скриншоты
 
-| Changes · полный вид | Changes · узкая панель |
+| Changes · прогресс задач | Specs · дерево спецификаций |
 | --- | --- |
-| ![Полный вид OpenSpec с группами задач и статусами выполнения](docs/screenshots/details.jpg) | ![Узкая панель OpenSpec](docs/screenshots/narrow.jpg) |
+| ![OpenSpec Changes с группами задач архивного изменения](marketplace/screenshots/openspec/changes.jpg) | ![OpenSpec Specs с деревом и полным текстом спецификации](marketplace/screenshots/openspec/specifications.jpg) |
 
-| Specs · дерево и сравнение | Specs · вкладка треда |
-| --- | --- |
-| ![Дерево спецификаций и сравнение требований до и после](docs/screenshots/specifications.jpg) | ![Вкладка OpenSpec Specs в узкой панели треда](docs/screenshots/specifications-narrow.jpg) |
+Changes и Specs, открытые одновременно в bb:
 
-Changes и Specs, открытые одновременно в bb.
-
-![Changes and Specs together](docs/screenshots/changes-and-specs.png)
+![Changes и Specs в двух панелях](marketplace/screenshots/openspec/changes-and-specs.jpg)
 
 ## Требования
 
@@ -137,7 +133,7 @@ bb plugin dev
 | `openspec/` | Спецификации и changes разработки плагина |
 | `docs/` | Исследования, макеты и результаты проверки |
 
-Разработка ведётся через OpenSpec. Proposals, designs, спецификации и tasks ведутся на английском языке; правило задано в `openspec/config.yaml`. Актуальные требования — в [openspec/specs](openspec/specs/), завершённые changes — в [архиве](openspec/changes/archive/): [первая версия браузера](openspec/changes/archive/2026-10-28-add-openspec-task-browser/), [watcher и обновление интерфейса](openspec/changes/archive/2026-10-28-watch-openspec-files/), [stores](openspec/changes/archive/2026-10-28-support-openspec-stores/) и [локализация](openspec/changes/archive/2026-10-28-add-plugin-localization/). Макеты в `docs/mockups/` отражают этап проектирования; актуальный интерфейс находится в исходниках.
+Разработка ведётся через OpenSpec. Proposals, designs, спецификации и tasks ведутся на английском языке; правило задано в `openspec/config.yaml`. Актуальные требования — в [openspec/specs](openspec/specs/), завершённые changes — в [архиве](openspec/changes/archive/): [первая версия браузера](openspec/changes/archive/2026-10-28-add-openspec-task-browser/), [watcher и обновление интерфейса](openspec/changes/archive/2026-10-28-watch-openspec-files/), [stores](openspec/changes/archive/2026-10-28-support-openspec-stores/) и [локализация](openspec/changes/archive/2026-10-28-add-plugin-localization/). Завершённое [управление спецификациями](openspec/changes/archive/2026-10-28-manage-specifications/) также находится в архиве, требования перенесены в основные спеки. Макеты в `docs/mockups/` отражают этап проектирования; актуальный интерфейс находится в исходниках.
 
 Проверка спецификаций:
 

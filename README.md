@@ -21,17 +21,13 @@ Track OpenSpec changes and task progress in [bb](https://getbb.app/), read speci
 
 ## Screenshots
 
-| Changes · full view | Changes · narrow panel |
+| Changes · task progress | Specs · specification tree |
 | --- | --- |
-| ![OpenSpec full view with task groups and completion status](docs/screenshots/details.jpg) | ![OpenSpec narrow panel](docs/screenshots/narrow.jpg) |
+| ![OpenSpec Changes with archived task groups and completion status](marketplace/screenshots/openspec/changes.jpg) | ![OpenSpec Specs with the recursive tree and a complete specification](marketplace/screenshots/openspec/specifications.jpg) |
 
-| Specs · tree and comparison | Specs · thread panel |
-| --- | --- |
-| ![OpenSpec specification tree with Current and Proposed requirement comparison](docs/screenshots/specifications.jpg) | ![OpenSpec Specs tab in a narrow thread panel](docs/screenshots/specifications-narrow.jpg) |
+Changes and Specs open together in bb:
 
-Changes and Specs open together in bb.
-
-![Changes and Specs together](docs/screenshots/changes-and-specs.png)
+![Changes and Specs in stacked panels](marketplace/screenshots/openspec/changes-and-specs.jpg)
 
 ## Requirements
 
@@ -139,7 +135,7 @@ For live development, run `bb plugin dev`. After a one-off build, use `bb plugin
 | `src/messages/`, `src/i18n*.ts*` | Locale registry, catalogs and UI translation |
 | `openspec/` | Plugin development specifications and changes |
 
-Development follows OpenSpec. Proposals, designs, specifications and tasks are maintained in English, as required by `openspec/config.yaml`. Current requirements live in [openspec/specs](openspec/specs/); completed changes are in [the archive](openspec/changes/archive/). Archived work covers the [task browser](openspec/changes/archive/2026-10-28-add-openspec-task-browser/), [watcher](openspec/changes/archive/2026-10-28-watch-openspec-files/), [stores](openspec/changes/archive/2026-10-28-support-openspec-stores/), [localization](openspec/changes/archive/2026-10-28-add-plugin-localization/) and [distribution preparation](openspec/changes/archive/2026-10-28-prepare-git-distribution/). Design mockups under `docs/mockups/` record earlier iterations.
+Development follows OpenSpec. Proposals, designs, specifications and tasks are maintained in English, as required by `openspec/config.yaml`. Current requirements live in [openspec/specs](openspec/specs/); completed changes are in [the archive](openspec/changes/archive/). Archived work covers the [task browser](openspec/changes/archive/2026-10-28-add-openspec-task-browser/), [watcher](openspec/changes/archive/2026-10-28-watch-openspec-files/), [stores](openspec/changes/archive/2026-10-28-support-openspec-stores/), [localization](openspec/changes/archive/2026-10-28-add-plugin-localization/) and [distribution preparation](openspec/changes/archive/2026-10-28-prepare-git-distribution/). The [specification browser](openspec/changes/archive/2026-10-28-manage-specifications/) is also archived, with its requirements synced into the main specs. Design mockups under `docs/mockups/` record earlier iterations.
 
 Verification reports: [specifications](docs/research/specifications-verification.md), [watcher](docs/research/watcher-verification.md), [stores](docs/research/stores-verification.md), [localization](docs/research/localization-verification.md). See [CHANGELOG.md](CHANGELOG.md) for version history and [docs/RELEASING.md](docs/RELEASING.md) for the Git release checklist and future Community submission requirements.
 
