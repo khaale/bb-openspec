@@ -119,15 +119,12 @@ bb plugin dev
 | `openspec/` | Спецификации и changes разработки плагина |
 | `docs/` | Исследования, макеты и результаты проверки |
 
-Разработка ведётся через OpenSpec. Текущие changes: [первая версия браузера](openspec/changes/add-openspec-task-browser/), [watcher и обновление интерфейса](openspec/changes/watch-openspec-files/), [stores](openspec/changes/support-openspec-stores/) и [локализация](openspec/changes/add-plugin-localization/). Макеты в `docs/mockups/` отражают этап проектирования; актуальный интерфейс находится в исходниках.
+Разработка ведётся через OpenSpec. Proposals, designs, спецификации и tasks ведутся на английском языке; правило задано в `openspec/config.yaml`. Актуальные требования — в [openspec/specs](openspec/specs/), завершённые changes — в [архиве](openspec/changes/archive/): [первая версия браузера](openspec/changes/archive/2026-10-28-add-openspec-task-browser/), [watcher и обновление интерфейса](openspec/changes/archive/2026-10-28-watch-openspec-files/), [stores](openspec/changes/archive/2026-10-28-support-openspec-stores/) и [локализация](openspec/changes/archive/2026-10-28-add-plugin-localization/). Макеты в `docs/mockups/` отражают этап проектирования; актуальный интерфейс находится в исходниках.
 
 Проверка спецификаций:
 
 ```sh
-openspec validate add-openspec-task-browser --strict --no-interactive
-openspec validate watch-openspec-files --strict --no-interactive
-openspec validate support-openspec-stores --strict --no-interactive
-openspec validate add-plugin-localization --strict --no-interactive
+openspec validate --specs --strict --no-interactive
 ```
 
 [Проверка локализации в версии 0.4.0](docs/research/localization-verification.md), [stores в версии 0.3.0](docs/research/stores-verification.md) и [watcher в 0.2.0](docs/research/watcher-verification.md). История изменений — в [CHANGELOG.md](CHANGELOG.md).

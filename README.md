@@ -119,7 +119,7 @@ For live development, run `bb plugin dev`. After a one-off build, use `bb plugin
 | `src/messages/`, `src/i18n*.ts*` | Locale registry, catalogs and UI translation |
 | `openspec/` | Plugin development specifications and changes |
 
-Development follows OpenSpec. Changes cover the [task browser](openspec/changes/add-openspec-task-browser/), [watcher](openspec/changes/watch-openspec-files/), [stores](openspec/changes/support-openspec-stores/), [localization](openspec/changes/add-plugin-localization/) and [distribution preparation](openspec/changes/prepare-git-distribution/). Design mockups under `docs/mockups/` record earlier iterations.
+Development follows OpenSpec. Proposals, designs, specifications and tasks are maintained in English, as required by `openspec/config.yaml`. Current requirements live in [openspec/specs](openspec/specs/); completed changes are in [the archive](openspec/changes/archive/). Archived work covers the [task browser](openspec/changes/archive/2026-10-28-add-openspec-task-browser/), [watcher](openspec/changes/archive/2026-10-28-watch-openspec-files/), [stores](openspec/changes/archive/2026-10-28-support-openspec-stores/), [localization](openspec/changes/archive/2026-10-28-add-plugin-localization/) and [distribution preparation](openspec/changes/archive/2026-10-28-prepare-git-distribution/). Design mockups under `docs/mockups/` record earlier iterations.
 
 Verification reports: [watcher](docs/research/watcher-verification.md), [stores](docs/research/stores-verification.md), [localization](docs/research/localization-verification.md). See [CHANGELOG.md](CHANGELOG.md) for version history and [docs/RELEASING.md](docs/RELEASING.md) for the Git release checklist and future Community submission requirements.
 
